@@ -644,24 +644,29 @@ def train_rule_only(
 
 
 if __name__ == '__main__':
-    import argparse
-    import os
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    # import argparse
+    # import os
+    # parser = argparse.ArgumentParser(
+    #     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    #
+    # parser.add_argument('--modeldir', type=str, default='trained_models/debug')
+    # args = parser.parse_args()
+    #
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-    parser.add_argument('--modeldir', type=str, default='trained_models/debug')
-    args = parser.parse_args()
+    from os.path import join
+    seed = 1
+    saving_path = './saved_models'
+    model_name = 'first_basic_TC_model_ctx_multi_sensory_delay_relu_seed_' + str(seed)
+    model_dir = join(saving_path, model_name)
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    hp = {'activation': 'softplus',
-          'n_rnn': 64,
-          'mix_rule': True,
-          'l1_h': 0.,
-          'use_separate_input': True}
-    train(args.modeldir,
-          seed=1,
+    hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.9,
+          'use_separate_input': True, 'activation': 'relu'}
+
+    train(model_dir,
+          seed=seed,
           hp=hp,
-          ruleset='all',
-          rule_trains=['contextdelaydm1', 'contextdelaydm2',
-                                 'contextdm1', 'contextdm2'],
+          ruleset='ctx_multi_sensory_delay',
+          rich_output=False,
+          max_steps=1e7,
           display_step=500)

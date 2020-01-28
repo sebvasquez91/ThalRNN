@@ -888,7 +888,7 @@ class Model(object):
             arc_type: type of thalamocortical architecture
         """
 
-        if not hp['use_separate_input']:
+        if not self.hp['use_separate_input']:
             raise ValueError('Fused input used. Please revise set_TC_architecture() method')
 
         for v in self.var_list:
