@@ -115,16 +115,17 @@ def reduce_weight_matrix(weights, pre_node_indexes='all', post_node_indexes='all
 
 
 def sparsify_weight_matrix(weights, perc_weights_to_zero, seed):
-
     np.random.seed(seed)
 
-    n_weights_to_zero = int(len(weights.flatten()) * perc_weights_to_zero)
+    n_weights_to_zero = int(weights.shape[1] * perc_weights_to_zero)
 
-    all_indexes = [(i, j) for i in range(weights.shape[0]) for j in range(weights.shape[1])]
+    all_indexes = [[(i, j) for j in range(weights.shape[1])] for i in range(weights.shape[0])]
 
-    sampled_indexes = np.array([all_indexes[i] for i in np.random.choice(range(len(all_indexes)),
-                                                                         size=n_weights_to_zero)]).T
-    weights[tuple(sampled_indexes)] = 0
+    for row_indexes in all_indexes:
+        sampled_indexes = np.array([row_indexes[i] for i in np.random.choice(range(len(row_indexes)),
+                                                                             size=n_weights_to_zero,
+                                                                             replace=False)]).T
+        weights[tuple(sampled_indexes)] = 0
 
     return weights
 
@@ -975,9 +976,13 @@ class Model(object):
                         perc_weights_to_zero = 0.52
                     elif 'output' in v.name:
                         perc_weights_to_zero = 0.8
+                        w_val = w_val.T
 
                     w_val = sparsify_weight_matrix(w_val, perc_weights_to_zero=perc_weights_to_zero, seed=self.hp['seed'])
 
+                    if 'output' in v.name:
+                        w_val = w_val.T
+                        
                 sess.run(v.assign(w_val))
                 print('Done. \n')
                 #plt.figure()
