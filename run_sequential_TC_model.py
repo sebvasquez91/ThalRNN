@@ -1,8 +1,8 @@
 import tensorflow as tf
 import numpy as np
 import time
-import tasks
-from tasks import generate_trials
+import task
+from task import generate_trials
 
 
 def get_default_hp(ruleset):

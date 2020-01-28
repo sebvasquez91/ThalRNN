@@ -88,7 +88,7 @@ def get_default_hp(ruleset):
             # number of output units
             'n_output': n_output,
             # number of recurrent units
-            'n_rnn': 256,
+            'n_rnn': 500,
             # number of input units
             'ruleset': ruleset,
             # name to save
@@ -98,6 +98,10 @@ def get_default_hp(ruleset):
             # intelligent synapses parameters, tuple (c, ksi)
             'c_intsyn': 0,
             'ksi_intsyn': 0,
+            # use TC architecture
+            'use_TC_arc': True,
+            # type of TC architecture to use
+            'type_TC_arc': 'basic'
             }
 
     return hp
@@ -264,6 +268,10 @@ def train(model_dir,
         else:
             # Assume everything is restored
             sess.run(tf.compat.v1.global_variables_initializer())
+
+        # Set thalamocortical architecture
+        if hp['use_TC_arc']:
+            model.set_TC_architecture(sess,arc_type=hp['type_TC_arc'])
 
         # Set trainable parameters
         if trainables is None or trainables == 'all':
@@ -641,7 +649,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('--modeldir', type=str, default='data/debug')
+    parser.add_argument('--modeldir', type=str, default='trained_models/debug')
     args = parser.parse_args()
 
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"

@@ -5,6 +5,7 @@ from __future__ import division
 import os
 import numpy as np
 import pickle
+#import matplotlib.pyplot as plt
 
 import tensorflow as tf
 from tensorflow.python.platform import tf_logging as logging
@@ -92,6 +93,25 @@ def get_perf(y_hat, y_loc):
     perf = should_fix * fixating + (1-should_fix) * corr_loc * (1-fixating)
     return perf
 
+
+def reduce_weight_matrix(weights, pre_node_indexes='all', post_node_indexes='all', keep_recurrency=False):
+    if pre_node_indexes == 'all':
+        pre_node_indexes = range(weights.shape[0])
+    if post_node_indexes == 'all':
+        post_node_indexes = range(weights.shape[1])
+
+    weights_to_zero = np.setdiff1d(range(weights[0].shape[0]), post_node_indexes)
+
+    if keep_recurrency:
+        if weights.shape[0] == weights.shape[1]:
+            weights_to_zero = np.setdiff1d(weights_to_zero, pre_node_indexes)
+        else:
+            print('Weight matrix is not squared!')
+
+    if len(weights_to_zero.shape):
+        weights[np.ix_(pre_node_indexes, weights_to_zero)] = 0
+
+    return weights
 
 class LeakyRNNCell(RNNCell):
     """The most basic RNN cell.
@@ -825,4 +845,112 @@ class Model(object):
         if verbose:
             print('Lesioned units:')
             print(units)
+
+    def lesion_units(self, sess, units, verbose=False):
+        """Lesion units given by units
+
+        Args:
+            sess: tensorflow session
+            units : can be None, an integer index, or a list of integer indices
+        """
+
+        # Convert to numpy array
+        if units is None:
+            return
+        elif not hasattr(units, '__iter__'):
+            units = np.array([units])
+        else:
+            units = np.array(units)
+
+        # This lesioning will work for both RNN and GRU
+        n_input = self.hp['n_input']
+        for v in self.var_list:
+            if 'kernel' in v.name or 'weight' in v.name:
+                # Connection weights
+                v_val = sess.run(v)
+                if 'output' in v.name:
+                    # output weights
+                    v_val[units, :] = 0
+                elif 'rnn' in v.name:
+                    # recurrent weights
+                    v_val[n_input + units, :] = 0
+                sess.run(v.assign(v_val))
+
+        if verbose:
+            print('Lesioned units:')
+            print(units)
+
+    def set_TC_architecture(self, sess, arc_type='basic'):
+        """Set weight matrices according to chosen thalamocortical architecture
+
+        Args:
+            sess: tensorflow session
+            arc_type: type of thalamocortical architecture
+        """
+
+        if not hp['use_separate_input']:
+            raise ValueError('Fused input used. Please revise set_TC_architecture() method')
+
+        for v in self.var_list:
+            if 'kernel' in v.name or 'weight' in v.name:
+                # Connection weights
+                w_val = sess.run(v)
+                print('\n Setting TC architecture for: ')
+                print(v.name)
+                print(v.shape)
+                if 'sen_input' in v.name:
+                    # go cue input weights
+                    w_val = reduce_weight_matrix(w_val,
+                                                 pre_node_indexes=[0],
+                                                 post_node_indexes=range(0, 100))
+                    # sensory modality input weights
+                    w_val = reduce_weight_matrix(w_val,
+                                                 pre_node_indexes=range(1 + 0 * self.hp['n_eachring'],
+                                                                        1 + 1 * self.hp['n_eachring']),
+                                                 post_node_indexes=range(100, 200))
+                    w_val = reduce_weight_matrix(w_val,
+                                                 pre_node_indexes=range(1 + 1 * self.hp['n_eachring'],
+                                                                        1 + 2 * self.hp['n_eachring']),
+                                                 post_node_indexes=range(200, 300))
+
+                elif 'rule_input' in v.name and not 'rnn' in v.name:
+                    # rule input weights
+                    w_val = reduce_weight_matrix(w_val,
+                                                 pre_node_indexes='all',# pre_node_indexes=range(self.hp['n_input']-self.hp['n_rule'],self.hp['n_input']),
+                                                 post_node_indexes=range(0, 100))
+
+                elif 'rnn' in v.name:
+                    # recurrent weights
+                    w_val = reduce_weight_matrix(w_val,
+                                                 pre_node_indexes=range(0, 100),
+                                                 post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
+                                                 keep_recurrency=True)  # go and rule module
+                    w_val = reduce_weight_matrix(w_val,
+                                                 pre_node_indexes=range(100, 200),
+                                                 post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
+                                                 keep_recurrency=True)  # mod 1 module
+                    w_val = reduce_weight_matrix(w_val,
+                                                 pre_node_indexes=range(200, 300),
+                                                 post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
+                                                 keep_recurrency=True)  # mod 1 module
+                    w_val = reduce_weight_matrix(w_val,
+                                                 pre_node_indexes=range(300, 400),
+                                                 post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
+                                                 keep_recurrency=True)  # motor module
+                    w_val = reduce_weight_matrix(w_val,
+                                                 pre_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
+                                                 post_node_indexes=range(0, self.hp['n_rnn'] - 100),
+                                                 keep_recurrency=False)  # thalamus module
+
+                elif 'output' in v.name:
+                    # output weights
+                    w_val = reduce_weight_matrix(w_val.T,
+                                                 pre_node_indexes='all',
+                                                 post_node_indexes=range(300, 400)).T
+
+                sess.run(v.assign(w_val))
+                #plt.figure()
+                #plt.imshow(v.eval())
+
+
 

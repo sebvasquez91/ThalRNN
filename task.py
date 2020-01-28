@@ -12,9 +12,19 @@ rules_dict = \
               'delaydm1', 'delaydm2', 'contextdelaydm1', 'contextdelaydm2', 'multidelaydm',
               'dmsgo', 'dmsnogo', 'dmcgo', 'dmcnogo'],
 
-    'mante' : ['contextdm1', 'contextdm2'],
+     'one_easy_rule': ['fdgo'],
 
-    'oicdmc' : ['oic', 'dmc']}
+     'multi_sensory_no_delay': ['multidm'],
+
+     'multi_sensory_delay': ['multidelaydm'],
+
+     'ctx_multi_sensory_no_delay': ['contextdm1', 'multidm', 'contextdm2'],
+
+     'ctx_multi_sensory_delay': ['contextdelaydm1', 'multidelaydm', 'contextdelaydm2'],
+
+     'mante' : ['contextdm1', 'contextdm2'],
+
+     'oicdmc' : ['oic', 'dmc']}
 
 # Store indices of rules
 rule_index_map = dict()

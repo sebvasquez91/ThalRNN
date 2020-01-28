@@ -3,8 +3,8 @@ import tensorflow as tf
 import numpy as np
 
 from thalnet_stable import SimpleRNNCell, TC_module, ThalNet
-import tasks
-from tasks import generate_trials
+import task
+from task import generate_trials
 import tools
 
 def get_default_hp(ruleset):
