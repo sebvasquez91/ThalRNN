@@ -68,6 +68,7 @@ def load_log(model_dir):
     """Load the log file of model save_name"""
     fname = os.path.join(model_dir, 'log.json')
     if not os.path.isfile(fname):
+        print('log file ' + fname + ' not found.')
         return None
 
     with open(fname, 'r') as f:
@@ -89,6 +90,7 @@ def load_hp(model_dir):
     if not os.path.isfile(fname):
         fname = os.path.join(model_dir, 'hparams.json')  # backward compat
         if not os.path.isfile(fname):
+            print('hp file ' + fname + ' not found.')
             return None
 
     with open(fname, 'r') as f:

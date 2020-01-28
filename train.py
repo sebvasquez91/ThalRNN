@@ -654,21 +654,34 @@ if __name__ == '__main__':
     #
     # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-    from os.path import join
-    seed = 1
-    saving_path = './saved_models'
-    #model_name = 'first_basic_TC_model_ctx_multi_sensory_delay_relu_seed_' + str(seed)
-    model_name = 'fully_connected_RNN_ctx_multi_sensory_delay_relu_seed_' + str(seed)
-    model_dir = join(saving_path, model_name)
+    from os.path import expanduser, join
+    import shutil
 
+    saving_path = './saved_models'
+
+    seed_range = range(2, 11)
     hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.9,
           'use_separate_input': True, 'activation': 'relu',
           'use_TC_arc': False, 'type_TC_arc': 'basic'}
+    hp_list = [{**hp, 'use_TC_arc': True},
+               {**hp, 'use_TC_arc': False}]
+    names_list = ['first_basic_TC_model_ctx_multi_sensory_delay_relu_seed_',
+                  'fully_connected_RNN_ctx_multi_sensory_delay_relu_seed_']
 
-    train(model_dir,
-          seed=seed,
-          hp=hp,
-          ruleset='ctx_multi_sensory_delay',
-          rich_output=False,
-          max_steps=1e7,
-          display_step=500)
+    for hp, name in zip(hp_list, names_list):
+        for seed in seed_range:
+            model_name = name + str(seed)
+            model_dir = join(saving_path, model_name)
+
+            train(model_dir,
+                  seed=seed,
+                  hp=hp,
+                  ruleset='ctx_multi_sensory_delay',
+                  rich_output=False,
+                  max_steps=1e7,
+                  display_step=500)
+
+            home = expanduser('~')
+            src = 'My_scripts_Local/Models_Local/ThalRNN/saved_models/'
+            dest = 'Dropbox/Trained_models/ThalRNN/saved_models/'
+            shutil.copytree(join(home, src, model_name), join(home, dest, model_name))

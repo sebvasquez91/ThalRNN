@@ -261,7 +261,7 @@ def plot_performanceprogress(model_dir, rule_color, ax=None, fig=None, rule_plot
     
 
 
-def plt_various_performances(trained_models,models_saving_dir='./trained_models',rules=['multidelaydm','contextdm1','contextdm2'],rule_color_pairs = None, show_legend=False, labels=None):
+def plt_various_performances(trained_models,models_saving_dir='./saved_models',rules=['multidelaydm','contextdm1','contextdm2'],rule_color_pairs = None, show_legend=False, labels=None):
 
     if rule_color_pairs is None:
         rule_color_pairs = ['bright purple','green blue','indigo','grey blue','lavender','aqua']
@@ -291,7 +291,9 @@ def plt_various_performances(trained_models,models_saving_dir='./trained_models'
         else:
             label = labels[i]
 
-        _, ax = plot_performanceprogress(join(models_saving_dir,trained_model),fig=fig_all , ax=ax, rule_color=rule_color,show_legend=False,label=label,rule_plot=rules)
+        model_dir = join(models_saving_dir,trained_model)
+        print(model_dir)
+        _, ax = plot_performanceprogress(model_dir, fig=fig_all , ax=ax, rule_color=rule_color,show_legend=False,label=label,rule_plot=rules)
 
     ax.plot([0,ax.get_xlim()[1]],[0.9,0.9],'k',linestyle=':')
     #ax.set_xlim([0,ax.get_xlim()[1]])
