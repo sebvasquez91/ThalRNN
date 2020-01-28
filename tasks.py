@@ -12,8 +12,6 @@ rules_dict = \
               'delaydm1', 'delaydm2', 'contextdelaydm1', 'contextdelaydm2', 'multidelaydm',
               'dmsgo', 'dmsnogo', 'dmcgo', 'dmcnogo'],
 
-    'ctx_multi_sensory_delay': ['contextdelaydm1', 'multidelaydm', 'contextdelaydm2'],
-
     'mante' : ['contextdm1', 'contextdm2'],
 
     'oicdmc' : ['oic', 'dmc']}
