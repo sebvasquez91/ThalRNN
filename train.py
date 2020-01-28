@@ -657,11 +657,13 @@ if __name__ == '__main__':
     from os.path import join
     seed = 1
     saving_path = './saved_models'
-    model_name = 'first_basic_TC_model_ctx_multi_sensory_delay_relu_seed_' + str(seed)
+    #model_name = 'first_basic_TC_model_ctx_multi_sensory_delay_relu_seed_' + str(seed)
+    model_name = 'fully_connected_RNN_ctx_multi_sensory_delay_relu_seed_' + str(seed)
     model_dir = join(saving_path, model_name)
 
     hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.9,
-          'use_separate_input': True, 'activation': 'relu'}
+          'use_separate_input': True, 'activation': 'relu',
+          'use_TC_arc': False, 'type_TC_arc': 'basic'}
 
     train(model_dir,
           seed=seed,
