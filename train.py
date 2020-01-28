@@ -669,12 +669,12 @@ if __name__ == '__main__':
           'use_separate_input': True, 'activation': 'relu',
           'use_TC_arc': True, 'type_TC_arc': 'basic',
           'use_sparse_weights_control': False}
-    hp_list = [#{**hp, 'use_TC_arc': True},
-               #{**hp, 'use_TC_arc': False},
-               {**hp, 'use_TC_arc': False, 'use_sparse_weights_control': True}]
-    names_list = [#'first_basic_TC_model_ctx_multi_sensory_delay_relu_seed_',
-                  #'fully_connected_RNN_ctx_multi_sensory_delay_relu_seed_',
-                  'sparse_control_RNN_ctx_multi_sensory_delay_relu_seed_']
+    hp_list = [{**hp, 'use_TC_arc': True},
+               {**hp, 'use_TC_arc': False}]
+               #{**hp, 'use_TC_arc': False, 'use_sparse_weights_control': True}]
+    names_list = ['first_basic_TC_model_ctx_multi_sensory_delay_relu_seed_',
+                  'fully_connected_RNN_ctx_multi_sensory_delay_relu_seed_']
+                  #'sparse_control_RNN_ctx_multi_sensory_delay_relu_seed_']
 
     for hp, name in zip(hp_list, names_list):
         for seed in seed_range:
@@ -692,4 +692,7 @@ if __name__ == '__main__':
             home = expanduser('~')
             src = 'My_scripts_Local/Models_Local/ThalRNN/saved_models/'
             dest = 'Dropbox/Trained_models/ThalRNN/saved_models/'
-            shutil.copytree(join(home, src, model_name), join(home, dest, model_name))
+            try:
+                shutil.copytree(join(home, src, model_name), join(home, dest, model_name))
+            except:
+                print('File copying to Dropbox failed.')
