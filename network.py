@@ -113,6 +113,22 @@ def reduce_weight_matrix(weights, pre_node_indexes='all', post_node_indexes='all
 
     return weights
 
+
+def sparsify_weight_matrix(weights, perc_weights_to_zero, seed):
+
+    np.random.seed(seed)
+
+    n_weights_to_zero = int(len(weights.flatten()) * perc_weights_to_zero)
+
+    all_indexes = [(i, j) for i in range(weights.shape[0]) for j in range(weights.shape[1])]
+
+    sampled_indexes = np.array([all_indexes[i] for i in np.random.choice(range(len(all_indexes)),
+                                                                         size=n_weights_to_zero)]).T
+    weights[tuple(sampled_indexes)] = 0
+
+    return weights
+
+
 class LeakyRNNCell(RNNCell):
     """The most basic RNN cell.
 
@@ -895,60 +911,75 @@ class Model(object):
             if 'kernel' in v.name or 'weight' in v.name:
                 # Connection weights
                 w_val = sess.run(v)
-                print('\n Setting TC architecture for: ')
-                print(v.name)
+                print('\n' + v.name)
                 print(v.shape)
-                if 'sen_input' in v.name:
-                    # go cue input weights
-                    w_val = reduce_weight_matrix(w_val,
-                                                 pre_node_indexes=[0],
-                                                 post_node_indexes=range(0, 100))
-                    # sensory modality input weights
-                    w_val = reduce_weight_matrix(w_val,
-                                                 pre_node_indexes=range(1 + 0 * self.hp['n_eachring'],
-                                                                        1 + 1 * self.hp['n_eachring']),
-                                                 post_node_indexes=range(100, 200))
-                    w_val = reduce_weight_matrix(w_val,
-                                                 pre_node_indexes=range(1 + 1 * self.hp['n_eachring'],
-                                                                        1 + 2 * self.hp['n_eachring']),
-                                                 post_node_indexes=range(200, 300))
+                if self.hp['use_TC_arc']:
+                    print('Setting TC architecture...')
+                    if 'sen_input' in v.name:
+                        # go cue input weights
+                        w_val = reduce_weight_matrix(w_val,
+                                                     pre_node_indexes=[0],
+                                                     post_node_indexes=range(0, 100))
+                        # sensory modality input weights
+                        w_val = reduce_weight_matrix(w_val,
+                                                     pre_node_indexes=range(1 + 0 * self.hp['n_eachring'],
+                                                                            1 + 1 * self.hp['n_eachring']),
+                                                     post_node_indexes=range(100, 200))
+                        w_val = reduce_weight_matrix(w_val,
+                                                     pre_node_indexes=range(1 + 1 * self.hp['n_eachring'],
+                                                                            1 + 2 * self.hp['n_eachring']),
+                                                     post_node_indexes=range(200, 300))
 
-                elif 'rule_input' in v.name and not 'rnn' in v.name:
-                    # rule input weights
-                    w_val = reduce_weight_matrix(w_val,
-                                                 pre_node_indexes='all',# pre_node_indexes=range(self.hp['n_input']-self.hp['n_rule'],self.hp['n_input']),
-                                                 post_node_indexes=range(0, 100))
+                    elif 'rule_input' in v.name:
+                        # rule input weights
+                        w_val = reduce_weight_matrix(w_val,
+                                                     pre_node_indexes='all',# pre_node_indexes=range(self.hp['n_input']-self.hp['n_rule'],self.hp['n_input']),
+                                                     post_node_indexes=range(0, 100))
 
-                elif 'rnn' in v.name:
-                    # recurrent weights
-                    w_val = reduce_weight_matrix(w_val,
-                                                 pre_node_indexes=range(0, 100),
-                                                 post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
-                                                 keep_recurrency=True)  # go and rule module
-                    w_val = reduce_weight_matrix(w_val,
-                                                 pre_node_indexes=range(100, 200),
-                                                 post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
-                                                 keep_recurrency=True)  # mod 1 module
-                    w_val = reduce_weight_matrix(w_val,
-                                                 pre_node_indexes=range(200, 300),
-                                                 post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
-                                                 keep_recurrency=True)  # mod 1 module
-                    w_val = reduce_weight_matrix(w_val,
-                                                 pre_node_indexes=range(300, 400),
-                                                 post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
-                                                 keep_recurrency=True)  # motor module
-                    w_val = reduce_weight_matrix(w_val,
-                                                 pre_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
-                                                 post_node_indexes=range(0, self.hp['n_rnn'] - 100),
-                                                 keep_recurrency=False)  # thalamus module
+                    elif 'rnn' in v.name:
+                        # recurrent weights
+                        w_val = reduce_weight_matrix(w_val,
+                                                     pre_node_indexes=range(0, 100),
+                                                     post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
+                                                     keep_recurrency=True)  # go and rule module
+                        w_val = reduce_weight_matrix(w_val,
+                                                     pre_node_indexes=range(100, 200),
+                                                     post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
+                                                     keep_recurrency=True)  # mod 1 module
+                        w_val = reduce_weight_matrix(w_val,
+                                                     pre_node_indexes=range(200, 300),
+                                                     post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
+                                                     keep_recurrency=True)  # mod 1 module
+                        w_val = reduce_weight_matrix(w_val,
+                                                     pre_node_indexes=range(300, 400),
+                                                     post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
+                                                     keep_recurrency=True)  # motor module
+                        w_val = reduce_weight_matrix(w_val,
+                                                     pre_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
+                                                     post_node_indexes=range(0, self.hp['n_rnn'] - 100),
+                                                     keep_recurrency=False)  # thalamus module
 
-                elif 'output' in v.name:
-                    # output weights
-                    w_val = reduce_weight_matrix(w_val.T,
-                                                 pre_node_indexes='all',
-                                                 post_node_indexes=range(300, 400)).T
+                    elif 'output' in v.name:
+                        # output weights
+                        w_val = reduce_weight_matrix(w_val.T,
+                                                     pre_node_indexes='all',
+                                                     post_node_indexes=range(300, 400)).T
+
+                elif self.hp['use_sparse_weights_control']:
+                    print('Sparsifying weights...')
+                    if 'sen_input' in v.name:
+                        perc_weights_to_zero = 0.8
+                    elif 'rule_input' in v.name:
+                        perc_weights_to_zero = 0.8
+                    elif 'rnn' in v.name:
+                        perc_weights_to_zero = 0.52
+                    elif 'output' in v.name:
+                        perc_weights_to_zero = 0.8
+
+                    w_val = sparsify_weight_matrix(w_val, perc_weights_to_zero=perc_weights_to_zero, seed=self.hp['seed'])
 
                 sess.run(v.assign(w_val))
+                print('Done. \n')
                 #plt.figure()
                 #plt.imshow(v.eval())
 
