@@ -94,6 +94,115 @@ def get_perf(y_hat, y_loc):
     return perf
 
 
+def generate_weight_masks(hp):
+    """Generates a dict with masks for weight matrices to be applied later
+
+    Args:
+        hp: network hyperparameters
+
+    Returns:
+        w_masks: Dictionary with masks for each type of weight matrix
+
+    """
+
+    w_mask = {'sen_input': np.ones([1+hp['num_ring']*hp['n_eachring'],hp['n_rnn']]),
+              'rule_input': np.ones([hp['n_rule'],hp['n_rnn']]),
+              'input': np.ones([1+hp['num_ring']*hp['n_eachring']+hp['n_rule'], hp['n_rnn']]),
+              'rnn': np.ones([hp['n_rnn'], hp['n_rnn']]),
+              'output': np.ones([hp['n_rnn'], hp['n_output']])}
+
+    if hp['use_w_mask']:
+        if hp['w_mask_type'] == 'basic_TC':
+            print('\nBasic TC weight mask used.\n')
+
+            # go cue input weights
+            w_mask['sen_input'] = reduce_weight_matrix(w_mask['sen_input'],
+                                         pre_node_indexes=[0],
+                                         post_node_indexes=range(0, 100))
+
+            # sensory modality input weights
+            w_mask['sen_input'] = reduce_weight_matrix(w_mask['sen_input'],
+                                                       pre_node_indexes=range(1 + 0 * hp['n_eachring'],
+                                                                              1 + 1 * hp['n_eachring']),
+                                                       post_node_indexes=range(100, 200))
+            w_mask['sen_input'] = reduce_weight_matrix(w_mask['sen_input'],
+                                                       pre_node_indexes=range(1 + 1 * hp['n_eachring'],
+                                                                              1 + 2 * hp['n_eachring']),
+                                                       post_node_indexes=range(200, 300))
+
+            # rule input weights
+            w_mask['rule_input'] = reduce_weight_matrix(w_mask['rule_input'],
+                                                        pre_node_indexes='all',# pre_node_indexes=range(self.hp['n_input']-self.hp['n_rule'],self.hp['n_input']),
+                                                        post_node_indexes=range(0, 100))
+
+            # all input weights
+            w_mask['input'] = reduce_weight_matrix(w_mask['input'],
+                                                   pre_node_indexes=[0],
+                                                   post_node_indexes=range(0, 100))
+            w_mask['input'] = reduce_weight_matrix(w_mask['input'],
+                                                   pre_node_indexes=range(1 + 0 * hp['n_eachring'],
+                                                                          1 + 1 * hp['n_eachring']),
+                                                   post_node_indexes=range(100, 200))
+            w_mask['input'] = reduce_weight_matrix(w_mask['input'],
+                                                   pre_node_indexes=range(1 + 1 * hp['n_eachring'],
+                                                                          1 + 2 * hp['n_eachring']),
+                                                   post_node_indexes=range(200, 300))
+            w_mask['input'] = reduce_weight_matrix(w_mask['input'],
+                                                   pre_node_indexes=range(1+hp['num_ring']*hp['n_eachring'],
+                                                                          1+hp['num_ring']*hp['n_eachring']+hp['n_rule']),
+                                                   post_node_indexes=range(0, 100))
+
+            # recurrent weights
+            w_mask['rnn'] = reduce_weight_matrix(w_mask['rnn'], # go and rule module
+                                                 pre_node_indexes=range(0, 100),
+                                                 post_node_indexes=range(hp['n_rnn'] - 100, hp['n_rnn']),
+                                                 keep_recurrency=True)
+            w_mask['rnn'] = reduce_weight_matrix(w_mask['rnn'],  # mod 1 module
+                                                 pre_node_indexes=range(100, 200),
+                                                 post_node_indexes=range(hp['n_rnn'] - 100, hp['n_rnn']),
+                                                 keep_recurrency=True)
+            w_mask['rnn'] = reduce_weight_matrix(w_mask['rnn'],  # mod 2 module
+                                                 pre_node_indexes=range(200, 300),
+                                                 post_node_indexes=range(hp['n_rnn'] - 100, hp['n_rnn']),
+                                                 keep_recurrency=True)
+            w_mask['rnn'] = reduce_weight_matrix(w_mask['rnn'],  # motor module
+                                                 pre_node_indexes=range(300, 400),
+                                                 post_node_indexes=range(hp['n_rnn'] - 100, hp['n_rnn']),
+                                                 keep_recurrency=True)
+            w_mask['rnn'] = reduce_weight_matrix(w_mask['rnn'],  # thalamus module
+                                                 pre_node_indexes=range(hp['n_rnn'] - 100, hp['n_rnn']),
+                                                 post_node_indexes=range(0, hp['n_rnn'] - 100),
+                                                 keep_recurrency=False)
+
+            # output weights
+            w_mask['output'] = reduce_weight_matrix(w_mask['output'].T,
+                                                    pre_node_indexes='all',
+                                                    post_node_indexes=range(300, 400)).T
+
+        elif hp['w_mask_type'] == 'random':
+            print('\nRandom weight mask used.\n')
+
+            w_mask['sen_input'] = sparsify_weight_matrix(w_mask['sen_input'],
+                                                         perc_weights_to_zero=0.8,
+                                                         seed=hp['seed'])
+            w_mask['rule_input'] = sparsify_weight_matrix(w_mask['rule_input'],
+                                                          perc_weights_to_zero=0.8,
+                                                          seed=hp['seed'])
+            w_mask['input'] = sparsify_weight_matrix(w_mask['input'],
+                                                     perc_weights_to_zero=0.8,
+                                                     seed=hp['seed'])
+            w_mask['rnn'] = sparsify_weight_matrix(w_mask['rnn'],
+                                                   perc_weights_to_zero=0.52,
+                                                   seed=hp['seed'])
+            w_mask['output'] = sparsify_weight_matrix(w_mask['output'].T,
+                                                      perc_weights_to_zero=0.8,
+                                                      seed=hp['seed']).T
+    else:
+        print('\nNo weight mask used.\n')
+
+    return w_mask
+
+
 def reduce_weight_matrix(weights, pre_node_indexes='all', post_node_indexes='all', keep_recurrency=False):
     if pre_node_indexes == 'all':
         pre_node_indexes = range(weights.shape[0])
@@ -148,6 +257,8 @@ class LeakyRNNCell(RNNCell):
                  num_units,
                  n_input,
                  alpha,
+                 w_mask_input,
+                 w_mask_rnn,
                  sigma_rec=0,
                  activation='softplus',
                  w_rec_init='diag',
@@ -192,10 +303,12 @@ class LeakyRNNCell(RNNCell):
         else:
             self.rng = rng
 
-        # Generate initialization matrix
+        # Generate initialization matrices
         n_hidden = self._num_units
-        w_in0 = (self.rng.randn(n_input, n_hidden) /
-                 np.sqrt(n_input) * self._w_in_start)
+
+        # Gaussian with mean 0.0
+        w_in0 = (self._w_in_start *
+                 self.rng.randn(n_input, n_hidden) / np.sqrt(n_input))
 
         if self._w_rec_init == 'diag':
             w_rec0 = self._w_rec_start*np.eye(n_hidden)
@@ -205,6 +318,10 @@ class LeakyRNNCell(RNNCell):
         elif self._w_rec_init == 'randgauss':
             w_rec0 = (self._w_rec_start *
                       self.rng.randn(n_hidden, n_hidden)/np.sqrt(n_hidden))
+
+        # Apply weight mask matrix
+        w_in0 = w_in0 * w_mask_input
+        w_rec0 = w_rec0 * w_mask_rnn
 
         matrix0 = np.concatenate((w_in0, w_rec0), axis=0)
 
@@ -377,6 +494,7 @@ class LeakyRNNCellSeparateInput(RNNCell):
     def __init__(self,
                  num_units,
                  alpha,
+                 w_mask_rnn,
                  sigma_rec=0,
                  activation='softplus',
                  w_rec_init='diag',
@@ -422,6 +540,9 @@ class LeakyRNNCellSeparateInput(RNNCell):
                       self.rng.randn(n_hidden, n_hidden)/np.sqrt(n_hidden))
         else:
             raise ValueError
+
+        # Apply weight matrix
+        w_rec0 = w_rec0 * w_mask_rnn
 
         self.w_rnn0 = w_rec0
         self._initializer = tf.compat.v1.constant_initializer(w_rec0, dtype=tf.float32)
@@ -513,7 +634,12 @@ class Model(object):
         self.model_dir = model_dir
         self.hp = hp
 
+
     def _build(self, hp):
+
+        # Generate dict with weight masks (matrices of ones if hp['use_w_mask'] is False)
+        self.w_masks_all = generate_weight_masks(hp)
+
         if 'use_separate_input' in hp and hp['use_separate_input']:
             self._build_seperate(hp)
         else:
@@ -560,6 +686,11 @@ class Model(object):
         n_rnn = hp['n_rnn']
         n_output = hp['n_output']
 
+        # Weight masks
+        self.w_mask_input = tf.constant(self.w_masks_all['input'], dtype=tf.float32)
+        self.w_mask_rnn = tf.constant(self.w_masks_all['rnn'], dtype=tf.float32)
+        self.w_mask_output = tf.constant(self.w_masks_all['output'], dtype=tf.float32)
+
         self.x = tf.compat.v1.placeholder("float", [None, None, n_input])
         self.y = tf.compat.v1.placeholder("float", [None, None, n_output])
         if hp['loss_type'] == 'lsq':
@@ -583,6 +714,8 @@ class Model(object):
             n_in_rnn = self.x.get_shape().as_list()[-1]
             cell = LeakyRNNCell(n_rnn, n_in_rnn,
                                 hp['alpha'],
+                                w_mask_input=self.w_masks_all['input'],
+                                w_mask_rnn=self.w_masks_all['rnn'],
                                 sigma_rec=hp['sigma_rec'],
                                 activation=hp['activation'],
                                 w_rec_init=hp['w_rec_init'],
@@ -605,13 +738,18 @@ class Model(object):
         self.h, states = rnn.dynamic_rnn(
             cell, self.x, dtype=tf.float32, time_major=True)
 
+        # Gaussian with mean 0.0 and with output weight mask applied
+        w_out0 = (self.rng.randn(n_rnn, n_output) / np.sqrt(n_output)) * self.w_masks_all['output']
+        out_w_initializer = tf.compat.v1.constant_initializer(w_out0, dtype=tf.float32)
+
         # Output
         with tf.compat.v1.variable_scope("output"):
-            # Using default initialization `glorot_uniform_initializer`
+            # NOT using default initialization `glorot_uniform_initializer` (SVL)
             w_out = tf.compat.v1.get_variable(
                 'weights',
                 [n_rnn, n_output],
-                dtype=tf.float32
+                dtype=tf.float32,
+                initializer=out_w_initializer
             )
             b_out = tf.compat.v1.get_variable(
                 'biases',
@@ -681,6 +819,8 @@ class Model(object):
         # Input, target output, and cost mask
         # Shape: [Time, Batch, Num_units]
         n_input = hp['n_input']
+        n_sen_input = hp['rule_start']
+        n_rule_input = hp['n_rule']
         n_rnn = hp['n_rnn']
         n_output = hp['n_output']
 
@@ -688,10 +828,15 @@ class Model(object):
         self.y = tf.compat.v1.placeholder("float", [None, None, n_output])
         self.c_mask = tf.compat.v1.placeholder("float", [None, n_output])
 
+        # Gaussian with mean 0.0 and with input weight mask applied
+        w_sen_in0 = (self.rng.randn(n_sen_input, n_rnn) / np.sqrt(n_sen_input)) * self.w_masks_all['sen_input']
+        sen_w_initializer = tf.compat.v1.constant_initializer(w_sen_in0, dtype=tf.float32)
+
         sensory_inputs, rule_inputs = tf.split(
             self.x, [hp['rule_start'], hp['n_rule']], axis=-1)
 
-        sensory_rnn_inputs = tf.compat.v1.layers.dense(sensory_inputs, n_rnn, name='sen_input')
+        sensory_rnn_inputs = tf.compat.v1.layers.dense(sensory_inputs, n_rnn, name='sen_input',
+                                                       kernel_initializer=sen_w_initializer)
 
         if 'mix_rule' in hp and hp['mix_rule'] is True:
             # rotate rule matrix
@@ -701,13 +846,19 @@ class Model(object):
                 use_bias=False, trainable=False,
                 kernel_initializer=kernel_initializer)
 
-        rule_rnn_inputs = tf.compat.v1.layers.dense(rule_inputs, n_rnn, name='rule_input', use_bias=False)
+        # Gaussian with mean 0.0 and with input weight mask applied
+        w_rule_in0 = (self.rng.randn(n_rule_input, n_rnn) / np.sqrt(n_rule_input)) * self.w_masks_all['rule_input']
+        rule_w_initializer = tf.compat.v1.constant_initializer(w_rule_in0, dtype=tf.float32)
+
+        rule_rnn_inputs = tf.compat.v1.layers.dense(rule_inputs, n_rnn, name='rule_input', use_bias=False,
+                                                    kernel_initializer=rule_w_initializer)
 
         rnn_inputs = sensory_rnn_inputs + rule_rnn_inputs
 
         # Recurrent activity
         cell = LeakyRNNCellSeparateInput(
             n_rnn, hp['alpha'],
+            w_mask_rnn=self.w_masks_all['rnn'],
             sigma_rec=hp['sigma_rec'],
             activation=hp['activation'],
             w_rec_init=hp['w_rec_init'],
@@ -720,9 +871,14 @@ class Model(object):
         # Output
         h_shaped = tf.reshape(self.h, (-1, n_rnn))
         y_shaped = tf.reshape(self.y, (-1, n_output))
+
+        # Gaussian with mean 0.0
+        w_out0 = (self.rng.randn(n_rnn, n_output) / np.sqrt(n_output)) * self.w_masks_all['output']
+        out_w_initializer = tf.compat.v1.constant_initializer(w_out0, dtype=tf.float32)
+
         # y_hat shape (n_time*n_batch, n_unit)
         y_hat = tf.compat.v1.layers.dense(
-            h_shaped, n_output, activation=tf.nn.sigmoid, name='output')
+            h_shaped, n_output, activation=tf.nn.sigmoid, name='output', kernel_initializer=out_w_initializer)
         # Least-square loss
         self.cost_lsq = tf.reduce_mean(
             input_tensor=tf.square((y_shaped - y_hat) * self.c_mask))
@@ -862,131 +1018,3 @@ class Model(object):
         if verbose:
             print('Lesioned units:')
             print(units)
-
-    def lesion_units(self, sess, units, verbose=False):
-        """Lesion units given by units
-
-        Args:
-            sess: tensorflow session
-            units : can be None, an integer index, or a list of integer indices
-        """
-
-        # Convert to numpy array
-        if units is None:
-            return
-        elif not hasattr(units, '__iter__'):
-            units = np.array([units])
-        else:
-            units = np.array(units)
-
-        # This lesioning will work for both RNN and GRU
-        n_input = self.hp['n_input']
-        for v in self.var_list:
-            if 'kernel' in v.name or 'weight' in v.name:
-                # Connection weights
-                v_val = sess.run(v)
-                if 'output' in v.name:
-                    # output weights
-                    v_val[units, :] = 0
-                elif 'rnn' in v.name:
-                    # recurrent weights
-                    v_val[n_input + units, :] = 0
-                sess.run(v.assign(v_val))
-
-        if verbose:
-            print('Lesioned units:')
-            print(units)
-
-    def set_TC_architecture(self, sess, arc_type='basic'):
-        """Set weight matrices according to chosen thalamocortical architecture
-
-        Args:
-            sess: tensorflow session
-            arc_type: type of thalamocortical architecture
-        """
-
-        if not self.hp['use_separate_input']:
-            raise ValueError('Fused input used. Please revise set_TC_architecture() method')
-
-        for v in self.var_list:
-            if 'kernel' in v.name or 'weight' in v.name:
-                # Connection weights
-                w_val = sess.run(v)
-                print('\n' + v.name)
-                print(v.shape)
-                if self.hp['use_TC_arc']:
-                    print('Setting TC architecture...')
-                    if 'sen_input' in v.name:
-                        # go cue input weights
-                        w_val = reduce_weight_matrix(w_val,
-                                                     pre_node_indexes=[0],
-                                                     post_node_indexes=range(0, 100))
-                        # sensory modality input weights
-                        w_val = reduce_weight_matrix(w_val,
-                                                     pre_node_indexes=range(1 + 0 * self.hp['n_eachring'],
-                                                                            1 + 1 * self.hp['n_eachring']),
-                                                     post_node_indexes=range(100, 200))
-                        w_val = reduce_weight_matrix(w_val,
-                                                     pre_node_indexes=range(1 + 1 * self.hp['n_eachring'],
-                                                                            1 + 2 * self.hp['n_eachring']),
-                                                     post_node_indexes=range(200, 300))
-
-                    elif 'rule_input' in v.name:
-                        # rule input weights
-                        w_val = reduce_weight_matrix(w_val,
-                                                     pre_node_indexes='all',# pre_node_indexes=range(self.hp['n_input']-self.hp['n_rule'],self.hp['n_input']),
-                                                     post_node_indexes=range(0, 100))
-
-                    elif 'rnn' in v.name:
-                        # recurrent weights
-                        w_val = reduce_weight_matrix(w_val,
-                                                     pre_node_indexes=range(0, 100),
-                                                     post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
-                                                     keep_recurrency=True)  # go and rule module
-                        w_val = reduce_weight_matrix(w_val,
-                                                     pre_node_indexes=range(100, 200),
-                                                     post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
-                                                     keep_recurrency=True)  # mod 1 module
-                        w_val = reduce_weight_matrix(w_val,
-                                                     pre_node_indexes=range(200, 300),
-                                                     post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
-                                                     keep_recurrency=True)  # mod 1 module
-                        w_val = reduce_weight_matrix(w_val,
-                                                     pre_node_indexes=range(300, 400),
-                                                     post_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
-                                                     keep_recurrency=True)  # motor module
-                        w_val = reduce_weight_matrix(w_val,
-                                                     pre_node_indexes=range(self.hp['n_rnn'] - 100, self.hp['n_rnn']),
-                                                     post_node_indexes=range(0, self.hp['n_rnn'] - 100),
-                                                     keep_recurrency=False)  # thalamus module
-
-                    elif 'output' in v.name:
-                        # output weights
-                        w_val = reduce_weight_matrix(w_val.T,
-                                                     pre_node_indexes='all',
-                                                     post_node_indexes=range(300, 400)).T
-
-                elif self.hp['use_sparse_weights_control']:
-                    print('Sparsifying weights...')
-                    if 'sen_input' in v.name:
-                        perc_weights_to_zero = 0.8
-                    elif 'rule_input' in v.name:
-                        perc_weights_to_zero = 0.8
-                    elif 'rnn' in v.name:
-                        perc_weights_to_zero = 0.52
-                    elif 'output' in v.name:
-                        perc_weights_to_zero = 0.8
-                        w_val = w_val.T
-
-                    w_val = sparsify_weight_matrix(w_val, perc_weights_to_zero=perc_weights_to_zero, seed=self.hp['seed'])
-
-                    if 'output' in v.name:
-                        w_val = w_val.T
-                        
-                sess.run(v.assign(w_val))
-                print('Done. \n')
-                #plt.figure()
-                #plt.imshow(v.eval())
-
-
-

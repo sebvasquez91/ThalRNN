@@ -57,29 +57,13 @@ def get_model_data(model_dir = None, get_clusters=False):
         model_data = {'hp':hp}
         return model_data
 
-    w_rec, w_in, w_out, b_rec, b_out = get_learnt_weights(model_dir,hp)
+    w_rec, w_in, w_out, b_rec, b_out, w_masks_all = get_learnt_weights(model_dir,hp)
     w_sen = w_in[:hp['rule_start'],:]
     w_rules = w_in[hp['rule_start']:,:]
 
-    if get_clusters:
-        clustered_rnn = clustering.Analysis(model_dir, data_type='rule', max_n_clusters=4, pos_rnn=pos_rnn)
-
-        active_rnn_variances = clustered_rnn.active_variances
-        active_cluster_labels = clustered_rnn.active_labels
-        active_pos_rnn = clustered_rnn.active_pos_rnn
-
-        model_data = {'hp':hp, 'pos_rnn':pos_rnn, 'input_pos':input_pos,
-        'output_pos':output_pos, 'w_rec':w_rec, 'w_in':w_in, 'w_out':w_out,
-        'w_sen':w_sen, 'w_rules':w_rules, 'b_rec':b_rec, 'b_out':b_out,
-        'distance_weight_pairs':distance_weight_pairs,
-        'mean_distances':mean_distances,
-        'clustered_rnn': clustered_rnn,
-        'active_rnn_variances':active_rnn_variances,
-        'active_cluster_labels':active_cluster_labels,
-        'active_pos_rnn':active_pos_rnn}
-    else:
-        model_data = {'hp': hp, 'w_rec': w_rec, 'w_in': w_in, 'w_out': w_out,
-                      'w_sen': w_sen, 'w_rules': w_rules, 'b_rec': b_rec, 'b_out': b_out}
+    model_data = {'hp': hp, 'w_rec': w_rec, 'w_in': w_in, 'w_out': w_out,
+                  'w_sen': w_sen, 'w_rules': w_rules, 'b_rec': b_rec, 'b_out': b_out,
+                  'w_masks_all': w_masks_all}
 
     return model_data
 
@@ -91,65 +75,12 @@ def get_hp(model_dir=None):
         with tf.compat.v1.Session() as sess:
             model.restore()
             hp = model.hp
+        print('Model hp restored.')
     else:
         hp = train.get_default_hp(def_ruleset)
+        print('Model hp not found. Default hp used.')
 
-    if 'rng' not in hp:
-        hp['rng'] = np.random.RandomState()
-
-    if 'ring_radius' not in hp:
-        hp['ring_radius'] = 3.5
-
-    if 'single_wiring_length' not in hp:
-        hp['single_wiring_length'] = None
-        
     return hp
-    
-
-def get_euclidean_dist(array1,array2):
-    euclidean_dist = cdist(array1,array2)
-    return euclidean_dist
-
-
-def cubic_shape_from_number(n):
-    
-    dim = int(round(n ** (1. / 3)))
-    if dim ** 3 == n:
-        return [dim,dim,dim]
-    
-    #Primer factorisation
-    primfac = []
-    d = 2
-    num = int(n)
-    while d*d <= num:
-        while (num % d) == 0:
-            primfac.append(d)  # supposing you want multiple factors repeated
-            num //= d
-        d += 1
-    if num > 1:
-        primfac.append(num)
-        
-    #Calculate dimensions
-    prime_occurences = {key: value for (key, value) in [(x,primfac.count(x)) for x in np.unique(primfac)]}
-    
-    cube_dim = [1,1,1]
-    dim = 0
-    for prime in sorted(list(prime_occurences.keys()),reverse=True):
-        for el in range(prime_occurences[prime]):
-            if dim > 2: 
-                dim = 0
-            if (cube_dim[dim] * prime) > (cube_dim[dim-1] * cube_dim[dim-2] * prime):
-                dim += 1
-                if dim > 2: 
-                    dim = 0
-            cube_dim[dim] = cube_dim[dim] * prime
-            dim += 1
-                
-    
-    if cube_dim[0]*cube_dim[1]*cube_dim[2] == n:
-        return sorted(cube_dim)
-    else:
-        print('Wrong dimensions: {} given, but {} produced.'.format(n, cube_dim[0]*cube_dim[1]*cube_dim[2]))
 
 
 def get_learnt_weights(model_dir, hp):
@@ -158,6 +89,8 @@ def get_learnt_weights(model_dir, hp):
         model = Model(model_dir)
         with tf.compat.v1.Session() as sess:
             model.restore()
+            # get dict with weight masks used
+            w_masks_all = model.w_masks_all
             # get all connection weights and biases as tensorflow variables
             var_list = model.var_list
             # evaluate the parameters after training
@@ -187,7 +120,7 @@ def get_learnt_weights(model_dir, hp):
 
             w_in = np.concatenate([w_sen_in,w_rule_in], axis=0)
 
-            return w_rec, w_in, w_out, b_rec, b_out
+            return w_rec, w_in, w_out, b_rec, b_out, w_masks_all
 
         else:
             for v, name in zip(trained_vars, names):
@@ -205,7 +138,7 @@ def get_learnt_weights(model_dir, hp):
                 else:
                     continue
 
-            return w_rec, w_in, w_out, b_rec, b_out
+            return w_rec, w_in, w_out, b_rec, b_out, w_masks_all
 
 
 def plot_performanceprogress(model_dir, rule_color, ax=None, fig=None, rule_plot=None, label=None, show_legend=False):

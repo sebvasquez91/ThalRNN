@@ -98,12 +98,10 @@ def get_default_hp(ruleset):
             # intelligent synapses parameters, tuple (c, ksi)
             'c_intsyn': 0,
             'ksi_intsyn': 0,
-            # use TC architecture
-            'use_TC_arc': True,
-            # type of TC architecture to use
-            'type_TC_arc': 'basic',
-            # use sparse weights
-            'use_sparse_weights_control': False
+            # use weight mask
+            'use_w_mask': True,
+            # type of weight mask to use ['random', 'basic_TC']
+            'w_mask_type': 'random'
             }
 
     return hp
@@ -271,18 +269,11 @@ def train(model_dir,
             # Assume everything is restored
             sess.run(tf.compat.v1.global_variables_initializer())
 
-        if hp['use_TC_arc'] and hp['use_sparse_weights_control']:
-            raise ValueError('Thalamocortical architecture and weight sparsification cannot be used together.')
-
-        # Set thalamocortical architecture (or weight sparsification)
-        if hp['use_TC_arc'] or hp['use_sparse_weights_control']:
-            model.set_TC_architecture(sess,arc_type=hp['type_TC_arc'])
-
         # Set trainable parameters
         if trainables is None or trainables == 'all':
             var_list = model.var_list  # train everything
         elif trainables == 'input':
-            # train all nputs
+            # train all inputs
             var_list = [v for v in model.var_list
                         if ('input' in v.name) and ('rnn' not in v.name)]
         elif trainables == 'rule':
@@ -664,16 +655,15 @@ if __name__ == '__main__':
 
     saving_path = './saved_models'
 
-    seed_range = range(1, 11)
+    seed_range = range(1, 2)
     hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.9,
           'use_separate_input': True, 'activation': 'relu',
-          'use_TC_arc': True, 'type_TC_arc': 'basic',
-          'use_sparse_weights_control': False}
-    hp_list = [{**hp, 'use_TC_arc': True},
-               {**hp, 'use_TC_arc': False}]
-               #{**hp, 'use_TC_arc': False, 'use_sparse_weights_control': True}]
-    names_list = ['first_basic_TC_model_ctx_multi_sensory_delay_relu_seed_',
-                  'fully_connected_RNN_ctx_multi_sensory_delay_relu_seed_']
+          'use_w_mask': True, 'w_mask_type': 'basic_TC'}
+    hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_TC'}]
+               #{**hp, 'use_w_mask': False, 'w_mask_type': 'none'}]
+               #{**hp, 'use_w_mask': True, 'w_mask_type': 'random'}]
+    names_list = ['test_seed_']#'first_basic_TC_model_ctx_multi_sensory_delay_relu_seed_',
+                  #'fully_connected_RNN_ctx_multi_sensory_delay_relu_seed_']
                   #'sparse_control_RNN_ctx_multi_sensory_delay_relu_seed_']
 
     for hp, name in zip(hp_list, names_list):
