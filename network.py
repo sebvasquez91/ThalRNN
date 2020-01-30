@@ -686,11 +686,6 @@ class Model(object):
         n_rnn = hp['n_rnn']
         n_output = hp['n_output']
 
-        # Weight masks
-        self.w_mask_input = tf.constant(self.w_masks_all['input'], dtype=tf.float32)
-        self.w_mask_rnn = tf.constant(self.w_masks_all['rnn'], dtype=tf.float32)
-        self.w_mask_output = tf.constant(self.w_masks_all['output'], dtype=tf.float32)
-
         self.x = tf.compat.v1.placeholder("float", [None, None, n_input])
         self.y = tf.compat.v1.placeholder("float", [None, None, n_output])
         if hp['loss_type'] == 'lsq':

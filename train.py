@@ -309,6 +309,26 @@ def train(model_dir,
                 model.cost_reg += tf.nn.l2_loss((w - w_val) * w_mask)
             model.set_optimizer(var_list=var_list)
 
+        # apply weight masks
+        if 'use_w_mask' in hp and hp['use_w_mask']:
+            for w in model.weight_list:
+                if not hp['use_separate_input'] and 'rnn' in w.name:
+                    w_mask = np.concatenate((model.w_masks_all['input'],
+                                             model.w_masks_all['rnn']), axis=0)
+                elif hp['use_separate_input'] and 'sen_input' in w.name:
+                    w_mask = model.w_masks_all['sen_input']
+                elif hp['use_separate_input'] and 'rule_input' in w.name:
+                    w_mask = model.w_masks_all['rule_input']
+                elif hp['use_separate_input'] and 'rnn' in w.name:
+                    w_mask = model.w_masks_all['rnn']
+                elif 'output' in w.name:
+                    w_mask = model.w_masks_all['output']
+                w_val = sess.run(w)
+                w_mask = np.abs(w_mask-1) # invert mask to prevent weight training of removed connections
+                w_mask[w_mask == 1] = 1e-1  # will be squared in l2_loss
+                model.cost_reg += tf.nn.l2_loss((w - w_val) * w_mask)
+            model.set_optimizer(var_list=var_list)
+
         step = 0
         while step * hp['batch_size_train'] <= max_steps:
             try:
@@ -657,7 +677,7 @@ if __name__ == '__main__':
 
     seed_range = range(1, 2)
     hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.9,
-          'use_separate_input': True, 'activation': 'relu',
+          'use_separate_input': False, 'activation': 'relu',
           'use_w_mask': True, 'w_mask_type': 'basic_TC'}
     hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_TC'}]
                #{**hp, 'use_w_mask': False, 'w_mask_type': 'none'}]
