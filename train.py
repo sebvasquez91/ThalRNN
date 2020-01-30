@@ -325,7 +325,7 @@ def train(model_dir,
                     w_mask = model.w_masks_all['output']
                 w_val = sess.run(w)
                 w_mask = np.abs(w_mask-1) # invert mask to prevent weight training of removed connections
-                w_mask[w_mask == 1] = 1e-1  # will be squared in l2_loss
+                w_mask[w_mask == 1] = 1e6  # will be squared in l2_loss
                 model.cost_reg += tf.nn.l2_loss((w - w_val) * w_mask)
             model.set_optimizer(var_list=var_list)
 
