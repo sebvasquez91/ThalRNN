@@ -228,9 +228,9 @@ def plt_various_performances(trained_models,models_saving_dir='./saved_models',r
         print(model_dir)
         _, ax = plot_performanceprogress(model_dir, fig=fig_all , ax=ax, rule_color=rule_color,show_legend=False,label=label,rule_plot=rules)
 
-    ax.plot([0,ax.get_xlim()[1]],[0.9,0.9],'k',linestyle=':')
+    ax.plot([0,ax.get_xlim()[1]],[0.95,0.95],'k',linestyle=':')
     #ax.set_xlim([0,ax.get_xlim()[1]])
-    if show_legend:
+    if show_legend and labels:
         ax.legend(custom_lines, labels, loc='center left', bbox_to_anchor=(1, 0.5),fontsize=12,labelspacing=0.3,frameon=False)
 
     plt.show()
@@ -366,13 +366,13 @@ def get_all_unit_activations(model_dir, rule, params, average_activations=True, 
         y_hat = y_hat / np.std(y_hat, 0)
 
     if ommit_fix_unit:
-        dict_activations = {'input': [model_data['input_pos'], x],
-                            'hidden': [model_data['pos_rnn'], h],
-                            'output': [model_data['output_pos'][1:, :], y_hat[:, 1:]], }
+        dict_activations = {'input': [np.zeros(x.shape), x],
+                            'hidden': [np.zeros(h.shape), h],
+                            'output': [np.zeros(y_hat[:, 1:].shape), y_hat[:, 1:]], }
     else:
-        dict_activations = {'input': [model_data['input_pos'], x],
-                            'hidden': [model_data['pos_rnn'], h],
-                            'output': [model_data['output_pos'], y_hat], }
+        dict_activations = {'input': [np.zeros(x.shape), x],
+                            'hidden': [np.zeros(h.shape), h],
+                            'output': [np.zeros(y_hat.shape), y_hat], }
 
     return dict_activations
 
@@ -449,14 +449,19 @@ def plot_weight_matrix(model_data,w_type='hidden',abs_weights=False,fft2=False):
         weight_matrix = model_data['w_rec']
         figsz = [15,15]
 
-    if abs_weights:
-        weight_matrix = abs(weight_matrix)-np.min(weight_matrix.flatten())
-        cmap='hot'
-    else:
-        weight_matrix = weight_matrix-np.mean(weight_matrix.flatten())
-        cmap='coolwarm'
+    print(str(round(1 - sum(weight_matrix.flatten() == 0) / len(weight_matrix.flatten()),2) * 100)
+          + '% of weights trained.')
 
-    plt.figure(figsize=[15,8])
+    if abs_weights:
+        weight_matrix = abs(weight_matrix)#-np.min(weight_matrix.flatten())
+        cmap = cm.get_cmap('hot')
+    else:
+        #weight_matrix = weight_matrix-np.mean(weight_matrix.flatten())
+        cmap = cm.get_cmap('coolwarm')
+
+    weight_matrix[weight_matrix==0] = np.nan
+    cmap.set_bad(color=[230/255, 230/255, 230/255]) #(color='white')
+    plt.figure(figsize=[15, 8])
     ax = plt.axes()
     plt.imshow(weight_matrix,cmap=cmap)
 
@@ -576,10 +581,11 @@ def subsample_unit_activations(activations, indexes, with_repeats=False):
 
     dict_activations_subsample['input'] = activations['input']
     if with_repeats:
-        dict_activations_subsample['hidden'] = [activations['hidden'][0][indexes, :],
-                                                activations['hidden'][1][:, :,indexes]]
+        print(activations['hidden'][1].shape)
+        dict_activations_subsample['hidden'] = [activations['hidden'][0][:, :, indexes], #[indexes, :],
+                                                activations['hidden'][1][:, :, indexes]]
     else:
-        dict_activations_subsample['hidden'] = [activations['hidden'][0][indexes, :],
+        dict_activations_subsample['hidden'] = [activations['hidden'][0][:, indexes], #[indexes, :],
                                                 activations['hidden'][1][:, indexes]]
     dict_activations_subsample['output'] = activations['output']
 

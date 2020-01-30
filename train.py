@@ -74,7 +74,7 @@ def get_default_hp(ruleset):
             # proportion of weights to train, None or float between (0, 1)
             'p_weight_train': None,
             # Stopping performance
-            'target_perf': 1.,
+            'target_perf': 0.95,#1.,
             # number of units each ring
             'n_eachring': n_eachring,
             # number of rings
