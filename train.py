@@ -310,24 +310,24 @@ def train(model_dir,
             model.set_optimizer(var_list=var_list)
 
         # apply weight masks
-        if 'use_w_mask' in hp and hp['use_w_mask']:
-            for w in model.weight_list:
-                if not hp['use_separate_input'] and 'rnn' in w.name:
-                    w_mask = np.concatenate((model.w_masks_all['input'],
-                                             model.w_masks_all['rnn']), axis=0)
-                elif hp['use_separate_input'] and 'sen_input' in w.name:
-                    w_mask = model.w_masks_all['sen_input']
-                elif hp['use_separate_input'] and 'rule_input' in w.name:
-                    w_mask = model.w_masks_all['rule_input']
-                elif hp['use_separate_input'] and 'rnn' in w.name:
-                    w_mask = model.w_masks_all['rnn']
-                elif 'output' in w.name:
-                    w_mask = model.w_masks_all['output']
-                w_val = sess.run(w)
-                w_mask = np.abs(w_mask-1) # invert mask to prevent weight training of removed connections
-                w_mask[w_mask == 1] = 1e6  # will be squared in l2_loss
-                model.cost_reg += tf.nn.l2_loss((w - w_val) * w_mask)
-            model.set_optimizer(var_list=var_list)
+        # if 'use_w_mask' in hp and hp['use_w_mask']:
+        #     for w in model.weight_list:
+        #         if not hp['use_separate_input'] and 'rnn' in w.name:
+        #             w_mask = np.concatenate((model.w_masks_all['input'],
+        #                                      model.w_masks_all['rnn']), axis=0)
+        #         elif hp['use_separate_input'] and 'sen_input' in w.name:
+        #             w_mask = model.w_masks_all['sen_input']
+        #         elif hp['use_separate_input'] and 'rule_input' in w.name:
+        #             w_mask = model.w_masks_all['rule_input']
+        #         elif hp['use_separate_input'] and 'rnn' in w.name:
+        #             w_mask = model.w_masks_all['rnn']
+        #         elif 'output' in w.name:
+        #             w_mask = model.w_masks_all['output']
+        #         w_val = sess.run(w)
+        #         w_mask = np.abs(w_mask-1) # invert mask to prevent weight training of removed connections
+        #         w_mask[w_mask == 1] = 1e6  # will be squared in l2_loss
+        #         model.cost_reg += tf.nn.l2_loss((w - w_val) * w_mask)
+        #     model.set_optimizer(var_list=var_list)
 
         step = 0
         while step * hp['batch_size_train'] <= max_steps:
@@ -675,19 +675,21 @@ if __name__ == '__main__':
 
     saving_path = './saved_models'
 
-    seed_range = range(1, 2)
-    hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.9,
+    seed_range = range(1, 11)
+    hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.95,
           'use_separate_input': False, 'activation': 'relu',
           'use_w_mask': True, 'w_mask_type': 'basic_TC'}
-    hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_TC'}]
-               #{**hp, 'use_w_mask': False, 'w_mask_type': 'none'}]
-               #{**hp, 'use_w_mask': True, 'w_mask_type': 'random'}]
-    names_list = ['test_seed_']#'first_basic_TC_model_ctx_multi_sensory_delay_relu_seed_',
-                  #'fully_connected_RNN_ctx_multi_sensory_delay_relu_seed_']
-                  #'sparse_control_RNN_ctx_multi_sensory_delay_relu_seed_']
+    hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_TC'},
+               {**hp, 'use_w_mask': True, 'w_mask_type': 'random'},
+               {**hp, 'use_w_mask': False, 'w_mask_type': 'none'}
+               ]
+    names_list = ['basic_TC_model_ctx_multi_sensory_delay_relu_seed_',
+                  'sparse_control_RNN_ctx_multi_sensory_delay_relu_seed_',
+                  'fully_connected_RNN_ctx_multi_sensory_delay_relu_seed_'
+                  ]
 
-    for hp, name in zip(hp_list, names_list):
-        for seed in seed_range:
+    for seed in seed_range:
+        for hp, name in zip(hp_list, names_list):
             model_name = name + str(seed)
             model_dir = join(saving_path, model_name)
 

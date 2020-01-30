@@ -629,6 +629,7 @@ class Model(object):
         if hp['in_type'] != 'normal':
             raise ValueError('Only support in_type ' + hp['in_type'])
 
+        self.hp = hp
         self._build(hp)
 
         self.model_dir = model_dir
@@ -780,6 +781,7 @@ class Model(object):
         n_input = hp['n_input']
         n_rnn = hp['n_rnn']
         n_output = hp['n_output']
+        self.w_masks_labelled = {}
 
         for v in self.var_list:
             if 'rnn' in v.name:
@@ -787,14 +789,20 @@ class Model(object):
                     # TODO(gryang): For GRU, fix
                     self.w_rec = v[n_input:, :]
                     self.w_in = v[:n_input, :]
+                    self.w_masks_labelled[v.name] = np.concatenate((self.w_masks_all['input'],
+                                                                    self.w_masks_all['rnn']),
+                                                                   axis=0)
                 else:
                     self.b_rec = v
+                    self.w_masks_labelled[v.name] = np.ones(v.shape)
             else:
                 assert 'output' in v.name
                 if 'kernel' in v.name or 'weight' in v.name:
                     self.w_out = v
+                    self.w_masks_labelled[v.name] = self.w_masks_all['output']
                 else:
                     self.b_out = v
+                    self.w_masks_labelled[v.name] = np.ones(v.shape)
 
         # check if the recurrent and output connection has the correct shape
         if self.w_out.shape != (n_rnn, n_output):
@@ -889,26 +897,38 @@ class Model(object):
         n_input = hp['n_input']
         n_rnn = hp['n_rnn']
         n_output = hp['n_output']
+        self.w_masks_labelled = {}
 
         for v in self.var_list:
             if 'rnn' in v.name:
                 if 'kernel' in v.name or 'weight' in v.name:
                     self.w_rec = v
+                    self.w_masks_labelled[v.name] = self.w_masks_all['rnn']
                 else:
                     self.b_rec = v
+                    self.w_masks_labelled[v.name] = np.ones(v.shape)
             elif 'sen_input' in v.name:
                 if 'kernel' in v.name or 'weight' in v.name:
                     self.w_sen_in = v
+                    self.w_masks_labelled[v.name] = self.w_masks_all['sen_input']
                 else:
                     self.b_in = v
+                    self.w_masks_labelled[v.name] = np.ones(v.shape)
             elif 'rule_input' in v.name:
-                self.w_rule = v
+                if 'kernel' in v.name or 'weight' in v.name:
+                    self.w_rule = v
+                    self.w_masks_labelled[v.name] = self.w_masks_all['rule_input']
+                else:
+                    self.b_in_rule = v
+                    self.w_masks_labelled[v.name] = np.ones(v.shape)
             else:
                 assert 'output' in v.name
                 if 'kernel' in v.name or 'weight' in v.name:
                     self.w_out = v
+                    self.w_masks_labelled[v.name] = self.w_masks_all['output']
                 else:
                     self.b_out = v
+                    self.w_masks_labelled[v.name] = np.ones(v.shape)
 
         # check if the recurrent and output connection has the correct shape
         if self.w_out.shape != (n_rnn, n_output):
@@ -975,9 +995,15 @@ class Model(object):
             print(v)
 
         self.grads_and_vars = self.opt.compute_gradients(cost, var_list)
-        # gradient clipping
-        capped_gvs = [(tf.clip_by_value(grad, -1., 1.), var)
-                      for grad, var in self.grads_and_vars]
+
+        # gradient clipping and applying of weight masks
+        if 'use_w_mask' in self.hp and self.hp['use_w_mask']:
+            capped_gvs = [(tf.clip_by_value(grad, -1., 1.) * tf.constant(self.w_masks_labelled[var.name].astype('float32')), var)
+                          for grad, var in self.grads_and_vars]
+        else:
+            capped_gvs = [(tf.clip_by_value(grad, -1., 1.), var)
+                          for grad, var in self.grads_and_vars]
+
         self.train_step = self.opt.apply_gradients(capped_gvs)
 
     def lesion_units(self, sess, units, verbose=False):
