@@ -47,7 +47,7 @@ def get_default_hp(ruleset):
             'loss_type': 'lsq',
             # Optimizer
             'optimizer': 'adam',
-            # Type of activation runctions, relu, softplus, tanh, elu
+            # Type of activation functions, relu, softplus, tanh, elu
             'activation': 'relu',
             # Time constant (ms)
             'tau': 100,
@@ -683,9 +683,9 @@ if __name__ == '__main__':
                {**hp, 'use_w_mask': True, 'w_mask_type': 'random'},
                {**hp, 'use_w_mask': False, 'w_mask_type': 'none'}
                ]
-    names_list = ['basic_TC_model_ctx_multi_sensory_delay_relu_seed_',
-                  'sparse_control_RNN_ctx_multi_sensory_delay_relu_seed_',
-                  'fully_connected_RNN_ctx_multi_sensory_delay_relu_seed_'
+    names_list = ['basic_TC_model_contextdelaydm_MD_task_relu_seed_',
+                  'sparse_control_RNN_contextdelaydm_MD_task_relu_seed_',
+                  'fully_connected_RNN_contextdelaydm_MD_task_relu_seed_'
                   ]
 
     for seed in seed_range:
@@ -696,7 +696,7 @@ if __name__ == '__main__':
             train(model_dir,
                   seed=seed,
                   hp=hp,
-                  ruleset='ctx_multi_sensory_delay',
+                  ruleset='contextdelaydm_MD_task',
                   rich_output=False,
                   max_steps=1e7,
                   display_step=500)
