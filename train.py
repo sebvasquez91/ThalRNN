@@ -687,11 +687,11 @@ if __name__ == '__main__':
           'use_separate_input': False, 'activation': 'relu',
           'use_w_mask': True, 'w_mask_type': 'basic_TC', 'random_connectivity': False,
           'exc_input_and_output': False, 'exc_inh_RNN': False, 'exc_prop_RNN': None}
-    hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_TC', 'random_connectivity': False},
+    hp_list = [#{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_TC', 'random_connectivity': False},
                {**hp, 'use_w_mask': True, 'w_mask_type': 'basic_TC', 'random_connectivity': True},
                {**hp, 'use_w_mask': False, 'w_mask_type': None}
                ]
-    names_list = ['basic_TC_model_contextdelaydm_MD_task_relu_v2_seed_',
+    names_list = [#'basic_TC_model_contextdelaydm_MD_task_relu_v2_seed_',
                   'sparse_control_RNN_contextdelaydm_MD_task_relu_v2_seed_',
                   'fully_connected_RNN_contextdelaydm_MD_task_relu_v2_seed_'
                   ]

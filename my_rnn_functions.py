@@ -451,7 +451,7 @@ def input_output_surface_plot(rule,params):
     ax[2].set_zlim([-0.05,max_zlim])
 
 
-def plot_weight_matrix(model_data,w_type='hidden',abs_weights=False,fft2=False):
+def plot_weight_matrix(model_data,w_type='hidden',abs_weights=False,fft2=False,hist=False):
     if w_type == 'input':
         weight_matrix = model_data['w_in']
         figsz = [15,8]
@@ -462,7 +462,7 @@ def plot_weight_matrix(model_data,w_type='hidden',abs_weights=False,fft2=False):
         weight_matrix = model_data['w_rec']
         figsz = [15,15]
 
-    print(str(round(1 - sum(weight_matrix.flatten() == 0) / len(weight_matrix.flatten()),2) * 100)
+    print(str(round(1 - sum(weight_matrix.flatten() == 0) / len(weight_matrix.flatten()), 2) * 100)
           + '% of weights trained.')
 
     if abs_weights:
@@ -472,15 +472,14 @@ def plot_weight_matrix(model_data,w_type='hidden',abs_weights=False,fft2=False):
         #weight_matrix = weight_matrix-np.mean(weight_matrix.flatten())
         cmap = cm.get_cmap('coolwarm')
 
-    weight_matrix[weight_matrix==0] = np.nan
+    weight_matrix[weight_matrix == 0] = np.nan
     cmap.set_bad(color=[230/255, 230/255, 230/255]) #(color='white')
     plt.figure(figsize=[15, 8])
     ax = plt.axes()
-    plt.imshow(weight_matrix,cmap=cmap)
+    plt.imshow(weight_matrix, cmap=cmap)
 
     ax.spines["right"].set_visible(False)
     ax.spines["top"].set_visible(False)
-
 
     if fft2:
         f = np.fft.fft2(weight_matrix)
@@ -488,8 +487,12 @@ def plot_weight_matrix(model_data,w_type='hidden',abs_weights=False,fft2=False):
         magnitude_spectrum = 20*np.log(np.abs(fshift))
 
         plt.figure(figsize=[15,8])
-        plt.imshow(magnitude_spectrum, cmap = 'gray')
+        plt.imshow(magnitude_spectrum, cmap='gray')
         plt.xticks([]), plt.yticks([])
+
+    if hist:
+        plt.figure(figsize=[5, 5])
+        plt.hist(weight_matrix.flatten()[np.logical_not(np.isnan(weight_matrix.flatten()))], density=True)
 
 
 def PCA_activity(model_dir, rule, stim1_mod1, stim2_mod1, stim1_mod2, stim2_mod2, subsample_indexes=None):

@@ -157,7 +157,6 @@ def get_network_modules_params(hp):
         net_arc = all_network_architectures(hp)[hp['w_mask_type']]
 
         for layer_type, modules in net_arc.items():
-
             for m in range(modules['n_modules']):
                 module_params.append({
                     'layer': layer_type,
@@ -180,14 +179,6 @@ def get_network_modules_params(hp):
         module_params.append({
             'layer': 'rule_input',
             'pre_node_indexes': range(0, hp['n_rule']),
-            'post_node_indexes': range(0, hp['n_rnn']),
-            'keep_recurrency': False,
-            'EI_balance': hp['exc_input_and_output'],
-            'exc_prop': 1 if hp['exc_input_and_output'] else None
-        })
-        module_params.append({
-            'layer': 'input',
-            'pre_node_indexes': range(0, hp['n_input']),
             'post_node_indexes': range(0, hp['n_rnn']),
             'keep_recurrency': False,
             'EI_balance': hp['exc_input_and_output'],
