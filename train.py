@@ -100,9 +100,16 @@ def get_default_hp(ruleset):
             'ksi_intsyn': 0,
             # use weight mask
             'use_w_mask': True,
-            # type of weight mask to use ['random', 'basic_TC']
-            'w_mask_type': 'random'
-            }
+            # type of weight mask to use ['basic_TC']
+            'w_mask_type': 'basic_TC',
+            # randomise connectivity based on selected weight mask
+            'random_connectivity': False,
+            # make all weights from/to the input/output layers excitatory
+            'exc_input_and_output': True,
+            # make hidden units to be either excitatory or inhibitory
+            'exc_inh_RNN': True,
+            # proportion of excitatory RNN units, set to 1 to make all units excitatory, or 0 to make all units inhibitory
+            'exc_prop_RNN': 0.8}
 
     return hp
 
@@ -675,17 +682,18 @@ if __name__ == '__main__':
 
     saving_path = './saved_models'
 
-    seed_range = range(1, 11)
+    seed_range = range(1,2) #(1, 11)
     hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.95,
           'use_separate_input': False, 'activation': 'relu',
-          'use_w_mask': True, 'w_mask_type': 'basic_TC'}
-    hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_TC'},
-               {**hp, 'use_w_mask': True, 'w_mask_type': 'random'},
-               {**hp, 'use_w_mask': False, 'w_mask_type': 'none'}
+          'use_w_mask': True, 'w_mask_type': 'basic_TC', 'random_connectivity': False,
+          'exc_input_and_output': False, 'exc_inh_RNN': False, 'exc_prop_RNN': None}
+    hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_TC', 'random_connectivity': False},
+               {**hp, 'use_w_mask': True, 'w_mask_type': 'basic_TC', 'random_connectivity': True},
+               {**hp, 'use_w_mask': False, 'w_mask_type': None}
                ]
-    names_list = ['basic_TC_model_contextdelaydm_MD_task_relu_seed_',
-                  'sparse_control_RNN_contextdelaydm_MD_task_relu_seed_',
-                  'fully_connected_RNN_contextdelaydm_MD_task_relu_seed_'
+    names_list = ['basic_TC_model_contextdelaydm_MD_task_relu_v2_seed_',
+                  'sparse_control_RNN_contextdelaydm_MD_task_relu_v2_seed_',
+                  'fully_connected_RNN_contextdelaydm_MD_task_relu_v2_seed_'
                   ]
 
     for seed in seed_range:

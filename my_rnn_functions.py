@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import cm
+import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d import Axes3D
 import tensorflow as tf
@@ -30,14 +31,16 @@ rule_name    = {'reactgo': 'RT Go',
                 'fdgo': 'Go',
                 'dm1': 'DM 1',
                 'dm2': 'DM 2',
-                'contextdm1': 'Attend mod 1',
-                'contextdm2': 'Attend mod 2',
-                'multidm': 'Integrate 1 & 2',
+                'contextdm1': 'Ctx DM 1',
+                'contextdm2': 'Ctx DM 2',
+                'multidm': 'MultSen DM',
                 'delaydm1': 'Dly DM 1',
                 'delaydm2': 'Dly DM 2',
-                'contextdelaydm1': 'Attend mod 1',
-                'contextdelaydm2': 'Attend mod 2',
-                'multidelaydm': 'Integrate 1 & 2',
+                'contextdelaydm1': 'Ctx Dly DM 1',
+                'contextdelaydm2': 'Ctx Dly DM 2',
+                'multidelaydm': 'MultSen Dly DM',
+                'contextdelaydm_MD_task_mod1': 'Ctx Dly DM 1 (MD task)',
+                'contextdelaydm_MD_task_mod2': 'Ctx Dly DM 2 (MD task)',
                 'reactanti': 'RT Anti',
                 'delayanti': 'Dly Anti',
                 'fdanti': 'Anti',
@@ -194,11 +197,17 @@ def plot_performanceprogress(model_dir, rule_color, ax=None, fig=None, rule_plot
     
 
 
-def plt_various_performances(trained_models,models_saving_dir='./saved_models',rules=['multidelaydm','contextdm1','contextdm2'],rule_color_pairs = None, show_legend=False, labels=None):
+def plt_various_performances(trained_models,models_saving_dir='./saved_models',rules=['multidelaydm','contextdm1','contextdm2'], colors_to_use = 'tableau', show_legend=False, labels=None):
 
-    if rule_color_pairs is None:
+
+    if colors_to_use == 'tableau':
+        colors = mcolors.TABLEAU_COLORS
+        by_hsv = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgb(color))),
+                         name)
+                        for name, color in colors.items())
+        rule_color_pairs = [name for hsv, name in by_hsv]
+    else:
         rule_color_pairs = ['bright purple','green blue','indigo','grey blue','lavender','aqua']
-    
 
     fig_all = plt.figure(figsize=(15,6))
 
@@ -210,8 +219,12 @@ def plt_various_performances(trained_models,models_saving_dir='./saved_models',r
         for rule in _rule_color.keys():
             _rule_color[rule] = rule_color_pairs.pop()
 
-        rule_color = {k: 'xkcd:'+v for k, v in _rule_color.items()}
-        custom_lines.append(Line2D([0], [0], color=rule_color[rule], lw=2))
+        if colors_to_use  == 'tableau':
+            rule_color = {k: v for k, v in _rule_color.items()}
+        else:
+            rule_color = {k: 'xkcd:'+v for k, v in _rule_color.items()}
+
+        custom_lines.append(Line2D([0], [0], color=colors[rule_color[rule]], lw=2))
     
         if i == 0:
             fig = plt.figure(figsize=(15,6))

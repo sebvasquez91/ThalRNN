@@ -94,113 +94,178 @@ def get_perf(y_hat, y_loc):
     return perf
 
 
-def generate_weight_masks(hp):
-    """Generates a dict with masks for weight matrices to be applied later
+def all_network_architectures(hp):
+    network_architectures = {
+        'basic_TC': {
+            'sen_input': {
+                'n_modules': 3,
+                'pre': [range(1 + i * hp['n_eachring'], 1 + (i+1) * hp['n_eachring']) if i >= 0 else [0] for i in range(-1,2)],
+                'post': [range(i * int(hp['n_rnn'] / 5), (i+1) * int(hp['n_rnn'] / 5)) for i in range(3)],
+                'rec': [False for i in range(3)],
+                'EI_balance': [False for i in range(3)],
+                'exc_prop': [None for i in range(3)]},
+            'rule_input': {
+                'n_modules': 1,
+                'pre': ['all'],
+                'post': [range(0, int(hp['n_rnn']/5))],
+                'rec': [False],
+                'EI_balance': [False],
+                'exc_prop': [None]},
+            'rnn': {
+                'n_modules': 5,
+                'pre': [range(i * int(hp['n_rnn'] / 5), (i+1) * int(hp['n_rnn'] / 5)) if i < 4 else range(4 * int(hp['n_rnn'] / 5), hp['n_rnn']) for i in range(5)],
+                'post': [range(4 * int(hp['n_rnn'] / 5), hp['n_rnn']) if i < 4 else range(0, 4 * int(hp['n_rnn'] / 5)) for i in range(5)],
+                'rec': [True if i < 4 else False for i in range(5)],
+                'EI_balance': [False for i in range(5)],
+                'exc_prop': [None for i in range(5)]},
+            'output': {
+                'n_modules': 1,
+                'pre': ['all'],
+                'post': [range(3 * int(hp['n_rnn'] / 5), 4 * int(hp['n_rnn'] / 5))],
+                'rec': [False],
+                'EI_balance': [False],
+                'exc_prop': [None]}
+                }
+        }
+
+    network_architectures['basic_TC_exc_in_out'] = network_architectures['basic_TC']
+
+    if 'exc_input_and_output' in hp and hp['exc_input_and_output'] and hp['w_mask_type'] is not None:
+        for layer in ['sen_input', 'rule_input', 'output']:
+            network_architectures[hp['w_mask_type']][layer]['EI_balance'] = [True for i in range(
+                network_architectures[hp['w_mask_type']][layer]['n_modules'])]
+            network_architectures[hp['w_mask_type']][layer]['exc_prop'] = [1. for i in range(
+                network_architectures[hp['w_mask_type']][layer]['n_modules'])]
+
+    return network_architectures
+
+def get_network_modules_params(hp):
+    """
+
+    Args:
+        hp: network hyperparameters
+
+    Returns:
+        module_params: a list of dictionaries with the parameters of the various network modules
+
+    """
+
+    module_params = []
+
+    if 'use_w_mask' in hp and hp['use_w_mask'] and 'random_connectivity' in hp and not hp['random_connectivity']:
+
+        net_arc = all_network_architectures(hp)[hp['w_mask_type']]
+
+        for layer_type, modules in net_arc.items():
+
+            for m in range(modules['n_modules']):
+                module_params.append({
+                    'layer': layer_type,
+                    'pre_node_indexes': modules['pre'][m],
+                    'post_node_indexes': modules['post'][m],
+                    'keep_recurrency': modules['rec'][m],
+                    'EI_balance': modules['EI_balance'][m],
+                    'exc_prop': modules['exc_prop'][m]
+                })
+
+    else:
+        module_params.append({
+            'layer': 'sen_input',
+            'pre_node_indexes': range(0, 1+hp['num_ring']*hp['n_eachring']),
+            'post_node_indexes': range(0, hp['n_rnn']),
+            'keep_recurrency': False,
+            'EI_balance': hp['exc_input_and_output'],
+            'exc_prop': 1 if hp['exc_input_and_output'] else None
+        })
+        module_params.append({
+            'layer': 'rule_input',
+            'pre_node_indexes': range(0, hp['n_rule']),
+            'post_node_indexes': range(0, hp['n_rnn']),
+            'keep_recurrency': False,
+            'EI_balance': hp['exc_input_and_output'],
+            'exc_prop': 1 if hp['exc_input_and_output'] else None
+        })
+        module_params.append({
+            'layer': 'input',
+            'pre_node_indexes': range(0, hp['n_input']),
+            'post_node_indexes': range(0, hp['n_rnn']),
+            'keep_recurrency': False,
+            'EI_balance': hp['exc_input_and_output'],
+            'exc_prop': 1 if hp['exc_input_and_output'] else None
+        })
+        module_params.append({
+            'layer': 'rnn',
+            'pre_node_indexes': range(0, hp['n_rnn']),
+            'post_node_indexes': range(0, hp['n_rnn']),
+            'keep_recurrency': True,
+            'EI_balance': hp['exc_input_and_output'],
+            'exc_prop': hp['exc_prop_RNN'] if hp['exc_input_and_output'] else None
+        })
+        module_params.append({
+            'layer': 'output',
+            'pre_node_indexes': range(0, hp['n_output']),
+            'post_node_indexes': range(0, hp['n_rnn']),
+            'keep_recurrency': False,
+            'EI_balance': hp['exc_input_and_output'],
+            'exc_prop': 1 if hp['exc_input_and_output'] else None
+        })
+
+    return module_params
+
+
+def generate_weight_masks_and_EI_matrices(hp, module_params):
+    """Generates a dict with masks of connectivity and excitation/inhibition to be applied later on weight matrices
 
     Args:
         hp: network hyperparameters
 
     Returns:
         w_masks: Dictionary with masks for each type of weight matrix
-
+        EI_matrices: Dictionary with masks for each type of weight matrix
     """
 
-    w_mask = {'sen_input': np.ones([1+hp['num_ring']*hp['n_eachring'],hp['n_rnn']]),
-              'rule_input': np.ones([hp['n_rule'],hp['n_rnn']]),
-              'input': np.ones([1+hp['num_ring']*hp['n_eachring']+hp['n_rule'], hp['n_rnn']]),
-              'rnn': np.ones([hp['n_rnn'], hp['n_rnn']]),
-              'output': np.ones([hp['n_rnn'], hp['n_output']])}
+    layers_n_units = {'sen_input': 1 + hp['num_ring'] * hp['n_eachring'],
+                      'rule_input': hp['n_rule'],
+                      'rnn': hp['n_rnn'],
+                      'output': hp['n_output']
+                      }
 
-    if hp['use_w_mask']:
-        if hp['w_mask_type'] == 'basic_TC':
-            print('\nBasic TC weight mask used.\n')
+    w_mask = {layer: np.ones([n_units, hp['n_rnn']]) for layer, n_units in layers_n_units.items()}
+    EI_matrices = {layer: np.zeros([n_units, n_units]) for layer, n_units in layers_n_units.items()}
+    EI_matrices['input'] = np.zeros([hp['n_input'], hp['n_input']])
 
-            # go cue input weights
-            w_mask['sen_input'] = reduce_weight_matrix(w_mask['sen_input'],
-                                         pre_node_indexes=[0],
-                                         post_node_indexes=range(0, 100))
+    if 'use_w_mask' in hp and hp['use_w_mask']:
 
-            # sensory modality input weights
-            w_mask['sen_input'] = reduce_weight_matrix(w_mask['sen_input'],
-                                                       pre_node_indexes=range(1 + 0 * hp['n_eachring'],
-                                                                              1 + 1 * hp['n_eachring']),
-                                                       post_node_indexes=range(100, 200))
-            w_mask['sen_input'] = reduce_weight_matrix(w_mask['sen_input'],
-                                                       pre_node_indexes=range(1 + 1 * hp['n_eachring'],
-                                                                              1 + 2 * hp['n_eachring']),
-                                                       post_node_indexes=range(200, 300))
+        print('\nNetwork based on ' + hp['w_mask_type'] + ' weight mask.\n')
 
-            # rule input weights
-            w_mask['rule_input'] = reduce_weight_matrix(w_mask['rule_input'],
-                                                        pre_node_indexes='all',# pre_node_indexes=range(self.hp['n_input']-self.hp['n_rule'],self.hp['n_input']),
-                                                        post_node_indexes=range(0, 100))
+        for m in module_params:
+            w_mask[m['layer']] = reduce_weight_matrix(w_mask[m['layer']],
+                                                      pre_node_indexes=m['pre_node_indexes'],
+                                                      post_node_indexes=m['post_node_indexes'],
+                                                      keep_recurrency=m['keep_recurrency'])
 
-            # all input weights
-            w_mask['input'] = reduce_weight_matrix(w_mask['input'],
-                                                   pre_node_indexes=[0],
-                                                   post_node_indexes=range(0, 100))
-            w_mask['input'] = reduce_weight_matrix(w_mask['input'],
-                                                   pre_node_indexes=range(1 + 0 * hp['n_eachring'],
-                                                                          1 + 1 * hp['n_eachring']),
-                                                   post_node_indexes=range(100, 200))
-            w_mask['input'] = reduce_weight_matrix(w_mask['input'],
-                                                   pre_node_indexes=range(1 + 1 * hp['n_eachring'],
-                                                                          1 + 2 * hp['n_eachring']),
-                                                   post_node_indexes=range(200, 300))
-            w_mask['input'] = reduce_weight_matrix(w_mask['input'],
-                                                   pre_node_indexes=range(1+hp['num_ring']*hp['n_eachring'],
-                                                                          1+hp['num_ring']*hp['n_eachring']+hp['n_rule']),
-                                                   post_node_indexes=range(0, 100))
+        if 'random_connectivity' in hp and hp['random_connectivity']:
+            print('\nRandomised weight mask used.\n')
 
-            # recurrent weights
-            w_mask['rnn'] = reduce_weight_matrix(w_mask['rnn'], # go and rule module
-                                                 pre_node_indexes=range(0, 100),
-                                                 post_node_indexes=range(hp['n_rnn'] - 100, hp['n_rnn']),
-                                                 keep_recurrency=True)
-            w_mask['rnn'] = reduce_weight_matrix(w_mask['rnn'],  # mod 1 module
-                                                 pre_node_indexes=range(100, 200),
-                                                 post_node_indexes=range(hp['n_rnn'] - 100, hp['n_rnn']),
-                                                 keep_recurrency=True)
-            w_mask['rnn'] = reduce_weight_matrix(w_mask['rnn'],  # mod 2 module
-                                                 pre_node_indexes=range(200, 300),
-                                                 post_node_indexes=range(hp['n_rnn'] - 100, hp['n_rnn']),
-                                                 keep_recurrency=True)
-            w_mask['rnn'] = reduce_weight_matrix(w_mask['rnn'],  # motor module
-                                                 pre_node_indexes=range(300, 400),
-                                                 post_node_indexes=range(hp['n_rnn'] - 100, hp['n_rnn']),
-                                                 keep_recurrency=True)
-            w_mask['rnn'] = reduce_weight_matrix(w_mask['rnn'],  # thalamus module
-                                                 pre_node_indexes=range(hp['n_rnn'] - 100, hp['n_rnn']),
-                                                 post_node_indexes=range(0, hp['n_rnn'] - 100),
-                                                 keep_recurrency=False)
+            for layer, n_units in layers_n_units.items():
+                w_mask[layer] = sparsify_weight_matrix(
+                    np.ones([n_units, hp['n_rnn']]),
+                    perc_weights_to_zero=sum(w_mask[layer].flatten() == 0).astype('int') / len(w_mask[layer].flatten()),
+                    seed=hp['seed'])
 
-            # output weights
-            w_mask['output'] = reduce_weight_matrix(w_mask['output'].T,
-                                                    pre_node_indexes='all',
-                                                    post_node_indexes=range(300, 400)).T
-
-        elif hp['w_mask_type'] == 'random':
-            print('\nRandom weight mask used.\n')
-
-            w_mask['sen_input'] = sparsify_weight_matrix(w_mask['sen_input'],
-                                                         perc_weights_to_zero=0.8,
-                                                         seed=hp['seed'])
-            w_mask['rule_input'] = sparsify_weight_matrix(w_mask['rule_input'],
-                                                          perc_weights_to_zero=0.8,
-                                                          seed=hp['seed'])
-            w_mask['input'] = sparsify_weight_matrix(w_mask['input'],
-                                                     perc_weights_to_zero=0.8,
-                                                     seed=hp['seed'])
-            w_mask['rnn'] = sparsify_weight_matrix(w_mask['rnn'],
-                                                   perc_weights_to_zero=0.52,
-                                                   seed=hp['seed'])
-            w_mask['output'] = sparsify_weight_matrix(w_mask['output'].T,
-                                                      perc_weights_to_zero=0.8,
-                                                      seed=hp['seed']).T
     else:
         print('\nNo weight mask used.\n')
 
-    return w_mask
+    w_mask['output'] = w_mask['output'].T
+    w_mask['input'] = np.concatenate([w_mask['sen_input'], w_mask['rule_input']], axis=0)
+
+    if 'exc_input_and_output' in hp and hp['exc_input_and_output']:
+        for layer, n_units in layers_n_units.items():
+            if layer is not 'rnn':
+                EI_matrices[layer] = np.diag(np.ones(n_units))
+        EI_matrices['input'] = np.diag(np.ones(hp['n_input']))
+
+    return w_mask, EI_matrices
 
 
 def reduce_weight_matrix(weights, pre_node_indexes='all', post_node_indexes='all', keep_recurrency=False):
@@ -629,6 +694,11 @@ class Model(object):
         if hp['in_type'] != 'normal':
             raise ValueError('Only support in_type ' + hp['in_type'])
 
+        # 'random' is no longer a mask type but a control randomisation matched to a given architecture
+        if hp['w_mask_type'] == 'random':
+            hp['w_mask_type'] = 'basic_TC'
+            hp['random_connectivity'] = False
+
         self.hp = hp
         self._build(hp)
 
@@ -638,8 +708,12 @@ class Model(object):
 
     def _build(self, hp):
 
+        # Get list of module parameters (for modular RNNs)
+        self.module_params = get_network_modules_params(hp)
+
         # Generate dict with weight masks (matrices of ones if hp['use_w_mask'] is False)
-        self.w_masks_all = generate_weight_masks(hp)
+        # and dict of diagonal mats defining if units are exc (1.) or inh (-1.)  (matrices of zeros if hp['exc_inh_RNN'] is False)
+        self.w_masks_all, self.EI_matrices = generate_weight_masks_and_EI_matrices(hp, self.module_params)
 
         if 'use_separate_input' in hp and hp['use_separate_input']:
             self._build_seperate(hp)
