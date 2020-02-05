@@ -129,13 +129,69 @@ def all_network_architectures(hp):
         }
 
     network_architectures['basic_TC_exc_in_out'] = network_architectures['basic_TC']
+    network_architectures['EI_basic_TC_exc_in'] = network_architectures['basic_TC']
+    network_architectures['basic_EI_TC_with_TRN'] = network_architectures['basic_TC']
 
-    if 'exc_input_and_output' in hp and hp['exc_input_and_output'] and hp['w_mask_type'] is not None:
+    if 'exc_input_and_output' in hp and hp['exc_input_and_output']:
         for layer in ['sen_input', 'rule_input', 'output']:
             network_architectures[hp['w_mask_type']][layer]['EI_balance'] = [True for i in range(
                 network_architectures[hp['w_mask_type']][layer]['n_modules'])]
             network_architectures[hp['w_mask_type']][layer]['exc_prop'] = [1. for i in range(
                 network_architectures[hp['w_mask_type']][layer]['n_modules'])]
+
+    if 'exc_inh_RNN' in hp and hp['exc_inh_RNN']:
+        network_architectures[hp['w_mask_type']]['rnn']['EI_balance'] = [True for i in range(
+            network_architectures[hp['w_mask_type']]['rnn']['n_modules'])]
+
+        if hp['w_mask_type'] == 'EI_basic_TC_exc_in':
+            network_architectures[hp['w_mask_type']]['rnn']['exc_prop'] = [hp['exc_prop_RNN'] if i < 4 else 1. for i in range(
+                network_architectures[hp['w_mask_type']]['rnn']['n_modules'])]
+
+        elif hp['w_mask_type'] == 'basic_EI_TC_with_TRN':
+
+            n_modules = 10
+            n_exc_units_module = int(int(hp['n_rnn'] / 5) * hp['exc_prop_RNN'])
+            n_inh_units_module = int(hp['n_rnn'] / 5) - n_exc_units_module
+            pre = []
+            post = []
+            exc_prop = []
+
+            n_count = 0
+            for module in range(n_modules):
+                if module < 9:
+                    if module % 2 == 0:
+                        pre.append(range(n_count, n_count+n_inh_units_module))
+                        post.append(range(n_count+n_inh_units_module, n_count+n_inh_units_module+n_exc_units_module))
+                        exc_prop.append(0.)
+                        n_count += n_inh_units_module
+                    else:
+                        pre.append(range(n_count, n_count + n_exc_units_module))
+                        post.append(np.concatenate([range(n_count-n_inh_units_module, n_count), range(4 * int(hp['n_rnn'] / 5), hp['n_rnn'])]))
+                        exc_prop.append(1.)
+                        n_count += n_exc_units_module
+                elif module == 9:
+                    pre.append(range(n_count, n_count + n_exc_units_module))
+                    post.append(range(0, n_count))
+                    exc_prop.append(1.)
+                    n_count += n_exc_units_module
+
+            network_architectures[hp['w_mask_type']]['rnn'] = {
+                'n_modules': n_modules,
+                'pre': pre,
+                'post': post,
+                'rec': [True if i < 9 else False for i in range(n_modules)],
+                'EI_balance': [True for i in range(n_modules)],
+                'exc_prop': exc_prop
+
+            }
+            network_architectures[hp['w_mask_type']]['output'] = {
+                'n_modules': 1,
+                'pre': ['all'],
+                'post': [range(3 * int(hp['n_rnn'] / 5) + n_inh_units_module, 4 * int(hp['n_rnn'] / 5))],
+                'rec': [False],
+                'EI_balance': [True],
+                'exc_prop': [1.]
+            }
 
     return network_architectures
 
@@ -152,7 +208,7 @@ def get_network_modules_params(hp):
 
     module_params = []
 
-    if 'use_w_mask' in hp and hp['use_w_mask'] and 'random_connectivity' in hp and not hp['random_connectivity']:
+    if 'use_w_mask' in hp and hp['use_w_mask'] and 'w_mask_type' in hp and hp['w_mask_type']: # and 'random_connectivity' in hp and not hp['random_connectivity']:
 
         net_arc = all_network_architectures(hp)[hp['w_mask_type']]
 
@@ -204,7 +260,7 @@ def get_network_modules_params(hp):
     return module_params
 
 
-def generate_weight_masks_and_EI_matrices(hp, module_params):
+def generate_weight_masks_and_EI_lists(hp, module_params):
     """Generates a dict with masks of connectivity and excitation/inhibition to be applied later on weight matrices
 
     Args:
@@ -212,7 +268,7 @@ def generate_weight_masks_and_EI_matrices(hp, module_params):
 
     Returns:
         w_masks: Dictionary with masks for each type of weight matrix
-        EI_matrices: Dictionary with masks for each type of weight matrix
+        EI_lists: Dictionary with lists indicating if units are excitatory or inhibitory
     """
 
     layers_n_units = {'sen_input': 1 + hp['num_ring'] * hp['n_eachring'],
@@ -222,18 +278,29 @@ def generate_weight_masks_and_EI_matrices(hp, module_params):
                       }
 
     w_mask = {layer: np.ones([n_units, hp['n_rnn']]) for layer, n_units in layers_n_units.items()}
-    EI_matrices = {layer: np.zeros([n_units, n_units]) for layer, n_units in layers_n_units.items()}
-    EI_matrices['input'] = np.zeros([hp['n_input'], hp['n_input']])
+    EI_lists = {layer: np.zeros(n_units) for layer, n_units in layers_n_units.items()}
+    EI_lists['input'] = np.zeros(hp['n_input'])
 
     if 'use_w_mask' in hp and hp['use_w_mask']:
 
         print('\nNetwork based on ' + hp['w_mask_type'] + ' weight mask.\n')
 
+        EI_lists_rnn = []
         for m in module_params:
             w_mask[m['layer']] = reduce_weight_matrix(w_mask[m['layer']],
                                                       pre_node_indexes=m['pre_node_indexes'],
                                                       post_node_indexes=m['post_node_indexes'],
                                                       keep_recurrency=m['keep_recurrency'])
+
+            if 'exc_inh_RNN' in hp and hp['exc_inh_RNN'] and 'rnn' in m['layer']:
+                n_unit_module = len(m['pre_node_indexes'])
+                exc_prop_module = m['exc_prop']
+                n_inh_units = n_unit_module - int(n_unit_module * exc_prop_module)
+                EI_list_module = np.ones(n_unit_module)
+                EI_list_module[:n_inh_units] = -1
+                EI_lists_rnn.append(EI_list_module)
+
+        EI_lists['rnn'] = np.concatenate(EI_lists_rnn, axis=0)
 
         if 'random_connectivity' in hp and hp['random_connectivity']:
             print('\nRandomised weight mask used.\n')
@@ -247,16 +314,25 @@ def generate_weight_masks_and_EI_matrices(hp, module_params):
     else:
         print('\nNo weight mask used.\n')
 
-    w_mask['output'] = w_mask['output'].T
+        if 'exc_inh_RNN' in hp and hp['exc_inh_RNN']:
+            n_inh_units = hp['n_rnn'] - int(hp['n_rnn']*hp['exc_prop_RNN'])
+            EI_list_rnn = np.ones(hp['n_rnn'])
+            EI_list_rnn[:n_inh_units] = -1
+            EI_lists['rnn'] = EI_list_rnn
+
     w_mask['input'] = np.concatenate([w_mask['sen_input'], w_mask['rule_input']], axis=0)
+    w_mask['output'] = w_mask['output'].T
 
     if 'exc_input_and_output' in hp and hp['exc_input_and_output']:
         for layer, n_units in layers_n_units.items():
             if layer is not 'rnn':
-                EI_matrices[layer] = np.diag(np.ones(n_units))
-        EI_matrices['input'] = np.diag(np.ones(hp['n_input']))
+                EI_lists[layer] = np.ones(n_units)
+        EI_lists['input'] = np.ones(hp['n_input'])
 
-    return w_mask, EI_matrices
+    if 'exc_inh_RNN' in hp and hp['exc_inh_RNN']:
+        EI_lists['output'] = EI_lists['rnn']
+
+    return w_mask, EI_lists
 
 
 def reduce_weight_matrix(weights, pre_node_indexes='all', post_node_indexes='all', keep_recurrency=False):
@@ -315,6 +391,8 @@ class LeakyRNNCell(RNNCell):
                  alpha,
                  w_mask_input,
                  w_mask_rnn,
+                 EI_list_input=None,
+                 EI_list_rnn=None,
                  sigma_rec=0,
                  activation='softplus',
                  w_rec_init='diag',
@@ -327,6 +405,7 @@ class LeakyRNNCell(RNNCell):
         # self.input_spec = base_layer.InputSpec(ndim=2)
 
         self._num_units = num_units
+        self._n_input = n_input
         self._w_rec_init = w_rec_init
         self._reuse = reuse
 
@@ -375,9 +454,24 @@ class LeakyRNNCell(RNNCell):
             w_rec0 = (self._w_rec_start *
                       self.rng.randn(n_hidden, n_hidden)/np.sqrt(n_hidden))
 
-        # Apply weight mask matrix
+        # Apply weight mask matrix to input and rnn weights
         w_in0 = w_in0 * w_mask_input
         w_rec0 = w_rec0 * w_mask_rnn
+
+        # Apply EI masks if used
+        if EI_list_input is None:
+            self.EI_input = False
+        else:
+            w_in0 = np.matmul(np.diag(EI_list_input), np.abs(w_in0))
+            self.EI_input = True
+            self._EI_matrix_input = tf.constant(np.diag(EI_list_input).astype('float32'))
+
+        if EI_list_rnn is None:
+            self.EI_rnn = False
+        else:
+            w_rec0 = np.matmul(np.diag(EI_list_rnn), np.abs(w_rec0))
+            self.EI_rnn = True
+            self._EI_matrix_rnn = tf.constant(np.diag(EI_list_rnn).astype('float32'))
 
         matrix0 = np.concatenate((w_in0, w_rec0), axis=0)
 
@@ -412,6 +506,17 @@ class LeakyRNNCell(RNNCell):
 
     def call(self, inputs, state):
         """Most basic RNN: output = new_state = act(W * input + U * state + B)."""
+
+        if self.EI_input or self.EI_rnn:
+            w_in, w_rec = tf.split(self._kernel, [self._n_input, self._num_units], axis=0)
+
+            if self.EI_input:
+                w_in = tf.matmul(self._EI_matrix_input, tf.abs(w_in))
+
+            if self.EI_rnn:
+                w_rec = tf.matmul(self._EI_matrix_rnn, tf.abs(w_rec))
+
+            self._kernel = tf.concat([w_in, w_rec],0)
 
         gate_inputs = math_ops.matmul(
             array_ops.concat([inputs, state], 1), self._kernel)
@@ -702,9 +807,11 @@ class Model(object):
         # Get list of module parameters (for modular RNNs)
         self.module_params = get_network_modules_params(hp)
 
-        # Generate dict with weight masks (matrices of ones if hp['use_w_mask'] is False)
-        # and dict of diagonal mats defining if units are exc (1.) or inh (-1.)  (matrices of zeros if hp['exc_inh_RNN'] is False)
-        self.w_masks_all, self.EI_matrices = generate_weight_masks_and_EI_matrices(hp, self.module_params)
+        # Generate dict with weight masks
+        # (matrices of ones if hp['use_w_mask'] is False)
+        # and dict of arrays specifying which units are exc (1.) or inh (-1.)
+        # (array of zeros if hp['exc_input_and_output'] and/or hp['exc_inh_RNN'] is False)
+        self.w_masks_all, self.EI_lists = generate_weight_masks_and_EI_lists(hp, self.module_params)
 
         if 'use_separate_input' in hp and hp['use_separate_input']:
             self._build_seperate(hp)
@@ -770,6 +877,17 @@ class Model(object):
         else:
             f_act = getattr(tf.nn, hp['activation'])
 
+        # EI matrices
+        if 'exc_input_and_output' in hp and hp['exc_input_and_output']:
+            EI_list_input = self.EI_lists['input']
+        else:
+            EI_list_input = None
+
+        if 'exc_inh_RNN' in hp and hp['exc_inh_RNN']:
+            EI_list_rnn = self.EI_lists['rnn']
+        else:
+            EI_list_rnn = None
+
         # Recurrent activity
         if hp['rnn_type'] == 'LeakyRNN':
             n_in_rnn = self.x.get_shape().as_list()[-1]
@@ -777,6 +895,8 @@ class Model(object):
                                 hp['alpha'],
                                 w_mask_input=self.w_masks_all['input'],
                                 w_mask_rnn=self.w_masks_all['rnn'],
+                                EI_list_input=EI_list_input,
+                                EI_list_rnn=EI_list_rnn,
                                 sigma_rec=hp['sigma_rec'],
                                 activation=hp['activation'],
                                 w_rec_init=hp['w_rec_init'],
@@ -801,6 +921,14 @@ class Model(object):
 
         # Gaussian with mean 0.0 and with output weight mask applied
         w_out0 = (self.rng.randn(n_rnn, n_output) / np.sqrt(n_output)) * self.w_masks_all['output']
+
+        # Apply EI masks if used
+        if 'exc_inh_RNN' in hp and hp['exc_inh_RNN']:
+            w_out0 = np.matmul(np.diag(self.EI_lists['output']), np.abs(w_out0))
+        else:
+            if 'exc_input_and_output' in hp and hp['exc_input_and_output']:
+                w_out0 = np.matmul(np.abs(w_out0), np.diag(self.EI_lists['output']))
+
         out_w_initializer = tf.compat.v1.constant_initializer(w_out0, dtype=tf.float32)
 
         # Output
@@ -821,6 +949,13 @@ class Model(object):
 
         h_shaped = tf.reshape(self.h, (-1, n_rnn))
         y_shaped = tf.reshape(self.y, (-1, n_output))
+
+        if 'exc_inh_RNN' in hp and hp['exc_inh_RNN']:
+            w_out = tf.matmul(tf.constant(np.diag(self.EI_lists['output']).astype('float32')), tf.abs(w_out))
+        else:
+            if 'exc_input_and_output' in hp and hp['exc_input_and_output']:
+                w_out = tf.matmul(tf.abs(w_out), tf.constant(np.diag(self.EI_lists['output']).astype('float32')))
+
         # y_hat_ shape (n_time*n_batch, n_unit)
         y_hat_ = tf.matmul(h_shaped, w_out) + b_out
         if hp['loss_type'] == 'lsq':

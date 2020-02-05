@@ -466,17 +466,19 @@ def plot_weight_matrix(model_data,w_type='hidden',abs_weights=False,fft2=False,h
           + '% of weights trained.')
 
     if abs_weights:
-        weight_matrix = abs(weight_matrix)#-np.min(weight_matrix.flatten())
+        weight_matrix = np.abs(weight_matrix)#-np.min(weight_matrix.flatten())
         cmap = cm.get_cmap('hot')
     else:
         #weight_matrix = weight_matrix-np.mean(weight_matrix.flatten())
-        cmap = cm.get_cmap('coolwarm')
+        cmap = cm.get_cmap('coolwarm_r')
 
-    weight_matrix[weight_matrix == 0] = np.nan
+    #weight_matrix[weight_matrix == 0] = np.nan
     cmap.set_bad(color=[230/255, 230/255, 230/255]) #(color='white')
     plt.figure(figsize=[15, 8])
     ax = plt.axes()
     plt.imshow(weight_matrix, cmap=cmap)
+    max_val = np.max(np.abs(weight_matrix.flatten()))
+    plt.clim([-max_val, max_val])
 
     ax.spines["right"].set_visible(False)
     ax.spines["top"].set_visible(False)
