@@ -684,19 +684,19 @@ if __name__ == '__main__':
 
     saving_path = './saved_models'
 
-    seed_range = range(1, 2)
+    seed_range = range(1, 11)
     hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.95,
           'use_separate_input': False, 'activation': 'relu',
           'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False,
           'exc_input_and_output': True, 'exc_inh_RNN': True, 'exc_prop_RNN': 0.8}
     hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False},
-               #{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': True},
-               #{**hp, 'use_w_mask': False, 'w_mask_type': None}
+               {**hp, 'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': True},
+               {**hp, 'use_w_mask': False, 'w_mask_type': None}
                ]
     names_list = [
-        'basic_EI_TC_with_TRN_contextdelaydm_MD_task_relu_v2_seed_',
-        #'sparse_control_EI_TC_with_TRN_contextdelaydm_MD_task_relu_seed_',
-        #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',
+        'TC_EI_net_with_TRN_contextdelaydm_MD_task_relu_seed_',
+        'sparse_control_EI_TC_with_TRN_contextdelaydm_MD_task_relu_seed_',
+        'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',
                   ]
 
     for hp, name in zip(hp_list, names_list):

@@ -92,8 +92,6 @@ def get_learnt_weights(model_dir, hp):
         model = Model(model_dir)
         with tf.compat.v1.Session() as sess:
             model.restore()
-            # apply EI masks to weights if used
-            #model.set_EI_masks(sess)
             # get dict with weight masks used
             w_masks_all = model.w_masks_all
             # get all connection weights and biases as tensorflow variables
