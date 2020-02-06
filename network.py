@@ -1206,6 +1206,33 @@ class Model(object):
 
         self.train_step = self.opt.apply_gradients(capped_gvs)
 
+    def set_EI_masks(self, sess):
+        """Apply EI masks for proper saving of weight variables
+        """
+
+        hp = self.hp
+        n_input = hp['n_input']
+        EI_lists = self.EI_lists
+
+        for v in self.var_list:
+            if 'kernel' in v.name or 'weight' in v.name:
+                # Connection weights
+                v_val = sess.run(v)
+                if 'rnn' in v.name:
+                    if hp['exc_input_and_output']:
+                        v_val[:n_input] = np.matmul(np.diag(EI_lists['input']), np.abs(v_val[:n_input]))
+
+                    if hp['exc_inh_RNN']:
+                        v_val[n_input:] = np.matmul(np.diag(EI_lists['rnn']), np.abs(v_val[n_input:]))
+
+                elif 'output' in v.name:
+                    if hp['exc_inh_RNN']:
+                        v_val = np.matmul(np.diag(EI_lists['output']), np.abs(v_val))
+                    else:
+                        if hp['exc_input_and_output']:
+                            v_val = np.matmul(np.abs(v_val), np.diag(EI_lists['output']))
+                sess.run(v.assign(v_val))
+
     def lesion_units(self, sess, units, verbose=False):
         """Lesion units given by units
 
