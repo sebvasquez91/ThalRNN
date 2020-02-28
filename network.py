@@ -131,6 +131,7 @@ def all_network_architectures(hp):
     network_architectures['basic_TC_exc_in_out'] = network_architectures['basic_TC']
     network_architectures['EI_basic_TC_exc_in'] = network_architectures['basic_TC']
     network_architectures['basic_EI_TC_with_TRN'] = network_architectures['basic_TC']
+    network_architectures['full_EI_CC_TC_with_TRN_v1'] = network_architectures['basic_TC']
 
     if 'exc_input_and_output' in hp and hp['exc_input_and_output']:
         for layer in ['sen_input', 'rule_input', 'output']:
@@ -192,6 +193,97 @@ def all_network_architectures(hp):
                 'EI_balance': [True],
                 'exc_prop': [1.]
             }
+
+
+        elif hp['w_mask_type'] == 'full_EI_CC_TC_with_TRN_v1':
+
+            n_modules = 20
+            n_exc_units_module = int(int(hp['n_rnn'] / 5) * hp['exc_prop_RNN'])
+            n_inh_units_module = int(hp['n_rnn'] / 5) - n_exc_units_module
+            pre = []
+            post = []
+            exc_prop = []
+
+            n_count = 0
+            for module in range(n_modules):
+                if module < 12:
+                    if module % 3 == 0:
+                        pre.append(range(n_count, n_count + n_inh_units_module))
+                        post.append(range(n_count+n_inh_units_module, n_count+n_inh_units_module+n_exc_units_module))
+                        exc_prop.append(0.)
+                        n_count += n_inh_units_module
+                    elif module % 3 == 1:
+                        pre.append(range(n_count, n_count + int(n_exc_units_module/2)))
+                        post_ranges = [range(n_count - n_inh_units_module, n_count+n_exc_units_module)]
+                        if module == 1:
+                            post_ranges.append(range(int(hp['n_rnn'] / 5), 4 * int(hp['n_rnn'] / 5)))
+                        elif module == 4 or module == 7:
+                            post_ranges.append(range(0, int(hp['n_rnn'] / 5)))
+                        post.append(np.concatenate(post_ranges))
+                        exc_prop.append(1.)
+                        n_count += int(n_exc_units_module/2)
+                    elif module % 3 == 2:
+                        pre.append(range(n_count, n_count + int(n_exc_units_module / 2)))
+                        post_ranges = [range(n_count - n_inh_units_module - int(n_exc_units_module / 2), n_count + int(n_exc_units_module / 2))]
+                        if module == 2:
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5), 4 * int(hp['n_rnn'] / 5) + n_inh_units_module))
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_inh_units_module, 4 * int(hp['n_rnn'] / 5) + n_inh_units_module + int(n_exc_units_module / 4)))
+                        elif module == 5:
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + int(n_inh_units_module / 4), 4 * int(hp['n_rnn'] / 5) + 2 * int(n_inh_units_module / 4)))
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_inh_units_module + int(n_exc_units_module / 4), 4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 2 * int(n_exc_units_module / 4)))
+                        elif module == 8:
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + 2 * int(n_inh_units_module / 4), 4 * int(hp['n_rnn'] / 5) + 3 * int(n_inh_units_module / 4)))
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 2 * int(n_exc_units_module / 4), 4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 3 * int(n_exc_units_module / 4)))
+                        elif module == 11:
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + 3 * int(n_inh_units_module / 4), 4 * int(hp['n_rnn'] / 5) + n_inh_units_module))
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 3 * int(n_exc_units_module / 4), 4 * int(hp['n_rnn'] / 5) + n_inh_units_module + n_exc_units_module))
+                        post.append(np.concatenate(post_ranges))
+                        exc_prop.append(1.)
+                        n_count += int(n_exc_units_module / 2)
+
+                elif module >= 12 and module < 16:
+                    pre.append(range(n_count, n_count + int(n_inh_units_module / 4)))
+                    post_range_start = 4 * int(hp['n_rnn'] / 5) + n_inh_units_module + (module % 12) * int(n_exc_units_module / 4)
+                    post_range_end = post_range_start + int(n_exc_units_module / 4)
+                    post.append(range(post_range_start,post_range_end))
+                    exc_prop.append(0.)
+                    n_count += int(n_inh_units_module / 4)
+                elif module >= 16:
+                    pre.append(range(n_count, n_count + int(n_exc_units_module / 4)))
+                    post_range_start1 = (module % 16) * int(hp['n_rnn'] / 5)
+                    post_range_end1 = post_range_start1 + int(hp['n_rnn'] / 5)
+                    post_range_start2 = 4 * int(hp['n_rnn'] / 5) + (module % 16) * int(n_inh_units_module / 4)
+                    post_range_end2 = post_range_start2 + int(n_inh_units_module / 4)
+                    post.append(np.concatenate([range(post_range_start1,post_range_end1), range(post_range_start2, post_range_end2)]))
+                    exc_prop.append(1.)
+                    n_count += int(n_exc_units_module / 4)
+
+            network_architectures[hp['w_mask_type']]['sen_input']['post'] = [range(0, int(hp['n_rnn'] / 5)),
+                                                                             range(4 * int(hp['n_rnn'] / 5) + n_inh_units_module + int(n_exc_units_module / 4),
+                                                                                   4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 2 * int(n_exc_units_module / 4)),
+                                                                             range(4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 2 * int(n_exc_units_module / 4),
+                                                                                   4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 3 * int(n_exc_units_module / 4))
+                                                                             ]
+
+            network_architectures[hp['w_mask_type']]['rnn'] = {
+                'n_modules': n_modules,
+                'pre': pre,
+                'post': post,
+                'rec': [True if i < 16 else False for i in range(n_modules)],
+                'EI_balance': [True for i in range(n_modules)],
+                'exc_prop': exc_prop
+
+            }
+            network_architectures[hp['w_mask_type']]['output'] = {
+                'n_modules': 1,
+                'pre': ['all'],
+                'post': [range(3 * int(hp['n_rnn'] / 5) + n_inh_units_module,
+                               3 * int(hp['n_rnn'] / 5) + n_inh_units_module + int(n_exc_units_module / 2))],
+                'rec': [False],
+                'EI_balance': [True],
+                'exc_prop': [1.]
+            }
+
 
     return network_architectures
 

@@ -1123,46 +1123,37 @@ def _contextdelaydm_MD_task(config, mode, attend_mod, **kwargs):
         # each batch consists of sequences of equal length
         tdim = fix_offs + int(500 / dt)  # longest trial 2500 ms
 
-    # elif mode == 'test':
-    #     n_stim_loc, n_stim_mod1_strength, n_stim_mod2_strength = batch_shape = 20, 5, 5
-    #     batch_size = np.prod(batch_shape)
-    #     ind_stim_loc, ind_stim_mod1_strength, ind_stim_mod2_strength = np.unravel_index(range(batch_size), batch_shape)
-    #
-    #     stim1_locs = 2 * np.pi * ind_stim_loc / n_stim_loc
-    #     stim2_locs = (stim1_locs + np.pi) % (2 * np.pi)
-    #     stim1_mod1_strengths = 0.4 * ind_stim_mod1_strength / n_stim_mod1_strength + 0.8
-    #     stim2_mod1_strengths = 2 - stim1_mod1_strengths
-    #     stim1_mod2_strengths = 0.4 * ind_stim_mod2_strength / n_stim_mod2_strength + 0.8
-    #     stim2_mod2_strengths = 2 - stim1_mod2_strengths
-    #
-    #     stim1_ons = int(500 / dt)
-    #     stim1_offs = int(1000 / dt)
-    #     stim2_ons = int(2000 / dt)
-    #     stim2_offs = int(2500 / dt)
-    #     fix_offs = int(3000 / dt)
-    #     tdim = int(3500 / dt)
-    #
-    # elif mode == 'psychometric':
-    #     p = kwargs['params']
-    #     stim1_locs = p['stim1_locs']
-    #     stim2_locs = p['stim2_locs']
-    #     stim1_mod1_strengths = p['stim1_mod1_strengths']
-    #     stim2_mod1_strengths = p['stim2_mod1_strengths']
-    #     stim1_mod2_strengths = p['stim1_mod2_strengths']
-    #     stim2_mod2_strengths = p['stim2_mod2_strengths']
-    #     # stim1_ons        = int(500/dt)
-    #     # stim1_offs       = int(1000/dt)
-    #     # stim2_ons        = int(p['stim_time']/dt) + stim1_offs
-    #     # stim2_offs       = int(500/dt) + stim2_ons
-    #     stim1_ons = int(300 / dt)
-    #     stim1_offs = int(600 / dt)
-    #     stim2_ons = int(p['stim_time'] / dt) + stim1_offs
-    #     stim2_offs = int(300 / dt) + stim2_ons
-    #     batch_size = len(stim1_locs)
-    #
-    #     # Time of stimulus on/off
-    #     fix_offs = int(200 / dt) + stim2_offs
-    #     tdim = int(300 / dt) + fix_offs
+    elif mode == 'test':
+        n_stim_loc, n_stim_mod1_strength, n_stim_mod2_strength = batch_shape = 20, 5, 5
+        batch_size = np.prod(batch_shape)
+        ind_stim_loc, ind_stim_mod1_strength, ind_stim_mod2_strength = np.unravel_index(range(batch_size),batch_shape)
+
+        stim_mod1_locs = 2*np.pi*ind_stim_loc/n_stim_loc
+        stim_mod2_locs = (stim_mod1_locs+np.pi)%(2*np.pi)
+        stim1_mod1_strengths = 0.4*ind_stim_mod1_strength/n_stim_mod1_strength+0.8
+        stim1_mod2_strengths = 0.4*ind_stim_mod2_strength/n_stim_mod2_strength+0.8
+
+        stim_ons = int(1300/dt)
+        stim_dur = int(100 / dt)
+        stim_offs = stim_ons + stim_dur
+        fix_offs = stim_offs + int(500 / dt)
+        tdim = fix_offs + int(500 / dt) # total trial length 2400 ms
+
+    elif mode == 'psychometric':
+        p = kwargs['params']
+        stim_mod1_locs = p['stim1_locs']
+        stim_mod2_locs = p['stim2_locs']
+        stim1_mod1_strengths = p['stim1_mod1_strengths']
+        stim1_mod2_strengths = p['stim1_mod2_strengths']
+
+        stim_ons        = int(1300/dt)
+        stim_dur = int(100 / dt)
+        stim_offs       = stim_ons + stim_dur
+        batch_size = len(stim_mod1_locs)
+
+        # Time of stimulus on/off
+        fix_offs = stim_offs + int(500/dt)
+        tdim = fix_offs + int(500 / dt) # total trial length 2400 ms
 
     else:
         raise ValueError('Unknown mode: ' + str(mode))
@@ -1219,7 +1210,7 @@ def dms_(config, mode, matchnogo, **kwargs):
     The second stimulus is shown between (stim2_on, T)
 
     The output should be fixation location for (0, stim2_on)
-    If two stimuli the different location, then for (stim2_on, T) go to stim2_loc
+    If two stimuli the different location, then for  (stim2_on, T) go to stim2_loc
     Otherwise keep fixation
 
     :param mode: the mode of generating. Options: 'random', 'explicit'...

@@ -379,13 +379,13 @@ def get_all_unit_activations(model_dir, rule, params, average_activations=True, 
         y_hat = y_hat / np.std(y_hat, 0)
 
     if ommit_fix_unit:
-        dict_activations = {'input': [np.zeros(x.shape), x],
-                            'hidden': [np.zeros(h.shape), h],
-                            'output': [np.zeros(y_hat[:, 1:].shape), y_hat[:, 1:]], }
+        dict_activations = {'input': x,
+                            'hidden': h,
+                            'output': y_hat[:, 1:]}
     else:
-        dict_activations = {'input': [np.zeros(x.shape), x],
-                            'hidden': [np.zeros(h.shape), h],
-                            'output': [np.zeros(y_hat.shape), y_hat], }
+        dict_activations = {'input': x,
+                            'hidden': h,
+                            'output': y_hat}
 
     return dict_activations
 
@@ -497,8 +497,21 @@ def plot_weight_matrix(model_data,w_type='hidden',abs_weights=False,fft2=False,h
         plt.hist(weight_matrix.flatten()[np.logical_not(np.isnan(weight_matrix.flatten()))], density=True)
 
 
+def subsample_unit_activations(activations, indexes, with_repeats=False):
+    dict_activations_subsample = dict.fromkeys(activations.keys())
+
+    dict_activations_subsample['input'] = activations['input']
+    if with_repeats:
+        print(activations['hidden'].shape)
+        dict_activations_subsample['hidden'] = activations['hidden'][:, :, indexes] #[indexes, :]
+    else:
+        dict_activations_subsample['hidden'] = activations['hidden'][:, indexes] #[indexes, :]
+    dict_activations_subsample['output'] = activations['output']
+
+    return dict_activations_subsample
+
+
 def PCA_activity(model_dir, rule, stim1_mod1, stim2_mod1, stim1_mod2, stim2_mod2, subsample_indexes=None):
-    plt.rcParams.update({'font.size': 12})
 
     params = get_sensory_stim_params(stim1_mod1, stim2_mod1, stim1_mod2, stim2_mod2, n_repats=8, single_loc=False)
 
@@ -507,7 +520,7 @@ def PCA_activity(model_dir, rule, stim1_mod1, stim2_mod1, stim1_mod2, stim2_mod2
     if subsample_indexes is not None:
         dict_activations = subsample_unit_activations(dict_activations, subsample_indexes, with_repeats=True)
 
-    temp_activity_neurons = dict_activations['hidden'][1]
+    temp_activity_neurons = dict_activations['hidden']
     time_steps = temp_activity_neurons.shape[0]
     unique_stim_locs = temp_activity_neurons.shape[1]
     activity_neurons = np.zeros([temp_activity_neurons.shape[2], time_steps * unique_stim_locs])
@@ -550,62 +563,142 @@ def PCA_activity(model_dir, rule, stim1_mod1, stim2_mod1, stim1_mod2, stim2_mod2
         projections = np.dot(data_nomean.T, eigenvec)
         return projections
 
-    proj_1 = projections(eigVects[:, 0], demeaned_activity_neurons)
-    proj_2 = projections(eigVects[:, 1], demeaned_activity_neurons)
-    proj_3 = projections(eigVects[:, 2], demeaned_activity_neurons)
+    return [np.reshape(projections(eigVects[:, i], demeaned_activity_neurons), (unique_stim_locs, time_steps)) for i in range(3)]
 
-    plt.figure(figsize=(15, 5))
-    ax1 = plt.subplot(131)
-    ax2 = plt.subplot(132)
-    ax3 = plt.subplot(133)
-    plt.subplots_adjust(wspace=0.4)
 
-    plt.figure(figsize=(15, 7))
-    ax_3d = plt.subplot(121, projection='3d')
+def PCAs_on_subnetworks(model_dir, rule, stim1_mod1, stim2_mod1, stim1_mod2, stim2_mod2, subnetworks):
+    for i in range(len(subnetworks)):
+        subnetworks[i]['pc_projections'] = PCA_activity(model_dir, rule, stim1_mod1, stim2_mod1, stim1_mod2,
+                                                             stim2_mod2,
+                                                             subsample_indexes=subnetworks[i]['index_range'])
+    return subnetworks
 
-    ax_locs = plt.subplot(122)
-    plt.xlim([-2, 2])
-    plt.ylim([-2, 2])
-    ax_locs.set_axis_off()
+
+def plot_PC_projections(projections, plot_single_pc=True, plot_2d_3d='2d', plot_locs=True, given_2d_3d_ax=None):
+
+    plt.rcParams.update({'font.size': 12})
+
+    unique_stim_locs = projections[0].shape[0]
+    time_steps = projections[0].shape[1]
+
+    axes = []
+
+    if plot_single_pc:
+        plt.figure(figsize=(15, 5))
+        ax1 = plt.subplot(131)
+        ax2 = plt.subplot(132)
+        ax3 = plt.subplot(133)
+        plt.subplots_adjust(wspace=0.4)
+        axes.append(ax1)
+        axes.append(ax2)
+        axes.append(ax3)
+
+    if given_2d_3d_ax is None:
+        if plot_2d_3d == '2d':
+            plt.figure(figsize=(5, 5))
+            ax_2d_3d = plt.subplot(121)
+        else:
+            plt.figure(figsize=(7, 7))
+            ax_2d_3d = plt.subplot(131, projection='3d')
+    else:
+        ax_2d_3d = given_2d_3d_ax
+
+    if plot_locs:
+        plt.figure(figsize=(5, 5))
+        ax_locs = plt.axes()
+        plt.xlim([-2, 2])
+        plt.ylim([-2, 2])
+        ax_locs.set_axis_off()
 
     lines = []
     point_angle = 2 * np.pi
 
     for loc in range(unique_stim_locs):
-        start = time_steps * loc
-        end = time_steps * (loc + 1)
 
-        pc1 = proj_1[start:end]
-        pc2 = proj_2[start:end]
-        pc3 = proj_3[start:end]
+        pc1 = projections[0][loc,:]
+        pc2 = projections[1][loc,:]
+        pc3 = projections[2][loc,:]
 
-        ax1.plot(pc1)
-        ax2.plot(pc2)
-        ax3.plot(pc3)
+        if plot_single_pc:
+            ax1.plot(pc1)
+            ax2.plot(pc2)
+            ax3.plot(pc3)
 
-        lines.append(ax_3d.plot3D(pc1, pc2, pc3))
+        if plot_2d_3d == '2d':
+            lines.append(ax_2d_3d.plot(pc1, pc2))
+        else:
+            lines.append(ax_2d_3d.plot3D(pc1, pc2, pc3))
 
-        rad = 1
-        col = lines[-1][-1].get_color()
+        if plot_locs:
+            rad = 1
+            col = lines[-1][-1].get_color()
 
-        for loc_point in range(int(32 / unique_stim_locs)):
-            point_num = (loc + 1) * (loc_point + 1)
-            point_angle -= 2 * np.pi / 32
-            ax_locs.scatter(np.cos(point_angle), np.sin(point_angle), c=col, s=200)
+            for loc_point in range(int(32 / unique_stim_locs)):
+                point_num = (loc + 1) * (loc_point + 1)
+                point_angle -= 2 * np.pi / 32
+                ax_locs.scatter(np.cos(point_angle), np.sin(point_angle), c=col, s=100)
 
 
-def subsample_unit_activations(activations, indexes, with_repeats=False):
-    dict_activations_subsample = dict.fromkeys(activations.keys())
+def plot_subnetwork_PC_projections(subnetworks):
+    plt.figure(figsize=(10, 10))
+    subplots = []
+    global_x_lims = [0, 0]
+    global_y_lims = [0, 0]
 
-    dict_activations_subsample['input'] = activations['input']
-    if with_repeats:
-        print(activations['hidden'][1].shape)
-        dict_activations_subsample['hidden'] = [activations['hidden'][0][:, :, indexes], #[indexes, :],
-                                                activations['hidden'][1][:, :, indexes]]
-    else:
-        dict_activations_subsample['hidden'] = [activations['hidden'][0][:, indexes], #[indexes, :],
-                                                activations['hidden'][1][:, indexes]]
-    dict_activations_subsample['output'] = activations['output']
+    for i in range(len(subnetworks)):
+        subplots.append(plt.subplot(231 + i))
+        plot_PC_projections(subnetworks[i]['pc_projections'], plot_single_pc=False, plot_locs=False,
+                                 given_2d_3d_ax=subplots[-1])
+        x_lims = subplots[i].get_xlim()
+        y_lims = subplots[i].get_ylim()
+        if x_lims[0] < global_x_lims[0]:
+            global_x_lims[0] = x_lims[0]
+        if x_lims[1] > global_x_lims[1]:
+            global_x_lims[1] = x_lims[1]
+        if y_lims[0] < global_y_lims[0]:
+            global_y_lims[0] = y_lims[0]
+        if y_lims[1] > global_y_lims[1]:
+            global_y_lims[1] = y_lims[1]
+        plt.title(subnetworks[i]['name'])
 
-    return dict_activations_subsample
+    for i in range(len(subnetworks)):
+        subplots[i].set_xlim(global_x_lims)
+        subplots[i].set_ylim(global_y_lims)
+        if i < 3:
+            subplots[i].axes.get_xaxis().set_visible(False)
+        if i != 0 and i != 3:
+            subplots[i].axes.get_yaxis().set_visible(False)
 
+
+def plot_unit_activations(activations, global_x_lims=[0, 0], global_y_lims=[0, 0]):
+    n = activations.shape[2]
+    side1 = int(np.ceil(np.sqrt(n)))
+    side2 = int(np.ceil(n / side1))
+
+    plt.figure(figsize=[50, 50])
+
+    subplots = []
+
+    for i in range(n):
+        subplots.append(plt.subplot(side1, side2, i + 1))
+        plt.plot(activations[:, :, i], 'grey', alpha=0.2)
+        x_lims = subplots[i].get_xlim()
+        y_lims = subplots[i].get_ylim()
+        if x_lims[0] < global_x_lims[0]:
+            global_x_lims[0] = x_lims[0]
+        if x_lims[1] > global_x_lims[1]:
+            global_x_lims[1] = x_lims[1]
+        if y_lims[0] < global_y_lims[0]:
+            global_y_lims[0] = y_lims[0]
+        if y_lims[1] > global_y_lims[1]:
+            global_y_lims[1] = y_lims[1]
+
+    for i in range(len(subplots)):
+        subplots[i].set_xlim(global_x_lims)
+        subplots[i].set_ylim(global_y_lims)
+    #     if i < 3:
+    #         subplots[i].axes.get_xaxis().set_visible(False)
+    #     if i != 0 and i != 3:
+    #         subplots[i].axes.get_yaxis().set_visible(False)
+
+    print(global_y_lims)
