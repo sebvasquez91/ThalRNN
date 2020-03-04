@@ -48,7 +48,7 @@ def get_default_hp(ruleset):
             # Optimizer
             'optimizer': 'adam',
             # Type of activation functions, relu, softplus, tanh, elu
-            'activation': 'relu',
+            'activation': 'retanh',
             # Time constant (ms)
             'tau': 100,
             # discretization time step (ms)
@@ -684,9 +684,9 @@ if __name__ == '__main__':
 
     saving_path = './saved_models'
 
-    seed_range = range(0, 11)
+    seed_range = range(0, 1)
     hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.95,
-          'use_separate_input': False, 'activation': 'relu',
+          'use_separate_input': False, 'activation': 'retanh',
           'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False,
           'exc_input_and_output': True, 'exc_inh_RNN': True, 'exc_prop_RNN': 0.8}
     hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v1', 'random_connectivity': False},
@@ -694,7 +694,7 @@ if __name__ == '__main__':
                #{**hp, 'use_w_mask': False, 'w_mask_type': None}
                ]
     names_list = [
-        'naive_full_EI_CC_TC_with_TRN_v1_contextdelaydm_MD_task_relu_seed_',
+        'full_EI_CC_TC_with_TRN_v1_contextdelaydm_MD_task_retanh_seed_',
         #'sparse_control_EI_TC_with_TRN_contextdelaydm_MD_task_relu_seed_',
         #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',
                   ]

@@ -8,7 +8,7 @@ from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d import Axes3D
 import tensorflow as tf
 import train, task
-from network import Model
+from network import Model, get_perf
 from scipy.spatial.distance import cdist
 plt.rcParams.update({'font.size': 20})
 from scipy.stats import ttest_ind
@@ -576,7 +576,7 @@ def PCAs_on_subnetworks(model_dir, rule, stim1_mod1, stim2_mod1, stim1_mod2, sti
 
 def plot_PC_projections(projections, plot_single_pc=True, plot_2d_3d='2d', plot_locs=True, given_2d_3d_ax=None):
 
-    plt.rcParams.update({'font.size': 12})
+    #plt.rcParams.update({'font.size': 12})
 
     unique_stim_locs = projections[0].shape[0]
     time_steps = projections[0].shape[1]
@@ -702,3 +702,23 @@ def plot_unit_activations(activations, global_x_lims=[0, 0], global_y_lims=[0, 0
     #         subplots[i].axes.get_yaxis().set_visible(False)
 
     print(global_y_lims)
+
+
+def perf_pre_post_lesion(model_dir, rule, units_to_lesion, batch_size=1000):
+    model = Model(model_dir)
+    hp = model.hp
+    with tf.compat.v1.Session() as sess:
+        model.restore()
+        trial = task.generate_trials(rule, hp, 'random', batch_size=1000)
+        feed_dict = tools.gen_feed_dict(model, trial, hp)
+        #x = sess.run(model.x, feed_dict=feed_dict)
+        #h = sess.run(model.h, feed_dict=feed_dict)
+
+        y_hat = sess.run(model.y_hat, feed_dict=feed_dict)
+        perf_pre = get_perf(y_hat, trial.y_loc)
+
+        model.lesion_units(sess, units_to_lesion)
+        y_hat = sess.run(model.y_hat, feed_dict=feed_dict)
+        perf_post = get_perf(y_hat, trial.y_loc)
+
+    return sum(perf_pre)/len(perf_pre), sum(perf_post)/len(perf_post)
