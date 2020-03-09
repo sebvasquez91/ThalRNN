@@ -8,7 +8,7 @@ import pickle
 import numpy as np
 
 
-def gen_feed_dict(model, trial, hp):
+def gen_feed_dict(model, trial, hp, h_init=None):
     """Generate feed_dict for session run."""
     if hp['in_type'] == 'normal':
         feed_dict = {model.x: trial.x,
@@ -32,6 +32,13 @@ def gen_feed_dict(model, trial, hp):
                      model.c_mask: trial.c_mask}
     else:
         raise ValueError()
+
+    if 'transfer_h_across_trials' in hp and hp['transfer_h_across_trials']:
+        if h_init is None:
+            batch_size = trial.x.shape[1]
+            n_rnn = hp['n_rnn']
+            h_init = np.zeros([batch_size, n_rnn], dtype=np.float32)
+        feed_dict[model.h_last] = h_init
 
     return feed_dict
 

@@ -109,7 +109,9 @@ def get_default_hp(ruleset):
             # make hidden units to be either excitatory or inhibitory
             'exc_inh_RNN': True,
             # proportion of excitatory RNN units, set to 1 to make all units excitatory, or 0 to make all units inhibitory
-            'exc_prop_RNN': 0.8}
+            'exc_prop_RNN': 0.8,
+            # transfer hidden states across trials
+            'transfer_h_across_trials': False}
 
     return hp
 
@@ -269,6 +271,8 @@ def train(model_dir,
     # Record time
     t_start = time.time()
 
+    h_init = None
+
     with tf.compat.v1.Session() as sess:
         if load_dir is not None:
             model.restore(load_dir)  # complete restore
@@ -366,8 +370,16 @@ def train(model_dir,
                         batch_size=hp['batch_size_train'])
 
                 # Generating feed_dict.
-                feed_dict = tools.gen_feed_dict(model, trial, hp)
+                feed_dict = tools.gen_feed_dict(model, trial, hp, h_init)
                 sess.run(model.train_step, feed_dict=feed_dict)
+
+                if 'transfer_h_across_trials' in hp and hp['transfer_h_across_trials']:
+                    if step % display_step == 0 and step > 0:
+                        transfer_h_noise = h_init - sess.run(model.h[0, :, :], feed_dict=feed_dict)
+                        transfer_h_noise = transfer_h_noise.flatten()
+                        print('Noise in transferred h states:  {:0.5f} ({:0.5f} std)'.format(np.mean(transfer_h_noise),
+                                                                                             np.std(transfer_h_noise)))
+                    h_init = sess.run(model.h[-1, :, :], feed_dict=feed_dict)
 
                 step += 1
 
@@ -684,17 +696,18 @@ if __name__ == '__main__':
 
     saving_path = './saved_models'
 
-    seed_range = range(0, 11)
+    seed_range = range(0, 1)
     hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.95,
           'use_separate_input': False, 'activation': 'retanh',
           'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False,
-          'exc_input_and_output': True, 'exc_inh_RNN': True, 'exc_prop_RNN': 0.8}
-    hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v1', 'random_connectivity': False},
+          'exc_input_and_output': True, 'exc_inh_RNN': True, 'exc_prop_RNN': 0.8,
+          'transfer_h_across_trials': False}
+    hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v1', 'random_connectivity': False, 'transfer_h_across_trials': True},
                #{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': True},
                #{**hp, 'use_w_mask': False, 'w_mask_type': None}
                ]
     names_list = [
-        'full_EI_CC_TC_with_TRN_v1_contextdelaydm_MD_task_retanh_seed_',
+        'full_EI_CC_TC_with_TRN_shared_h_contextdelaydm_MD_task_retanh_seed_',
         #'sparse_control_EI_TC_with_TRN_contextdelaydm_MD_task_relu_seed_',
         #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',
                   ]
