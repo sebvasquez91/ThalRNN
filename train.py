@@ -696,7 +696,7 @@ if __name__ == '__main__':
 
     saving_path = './saved_models'
 
-    seed_range = range(0, 1)
+    seed_range = range(0, 10)
     hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.95,
           'use_separate_input': False, 'activation': 'retanh',
           'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False,
