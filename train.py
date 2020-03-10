@@ -88,7 +88,7 @@ def get_default_hp(ruleset):
             # number of output units
             'n_output': n_output,
             # number of recurrent units
-            'n_rnn': 500,
+            'n_rnn': 200,
             # number of input units
             'ruleset': ruleset,
             # name to save
@@ -696,18 +696,19 @@ if __name__ == '__main__':
 
     saving_path = './saved_models'
 
-    seed_range = range(1, 11)
-    hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.95,
+    seed_range = range(3, 10) #(0, 10)
+    hp = {'learning_rate': 0.001, 'n_rnn': 200, 'target_perf': 0.95,
           'use_separate_input': False, 'activation': 'retanh',
           'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False,
           'exc_input_and_output': True, 'exc_inh_RNN': True, 'exc_prop_RNN': 0.8,
           'transfer_h_across_trials': False}
-    hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v1', 'random_connectivity': False, 'transfer_h_across_trials': True},
+    hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v1', 'random_connectivity': False, 'transfer_h_across_trials': False},
                #{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': True},
                #{**hp, 'use_w_mask': False, 'w_mask_type': None}
                ]
     names_list = [
-        'full_EI_CC_TC_with_TRN_shared_h_contextdelaydm_MD_task_retanh_seed_',
+        'full_EI_CC_TC_with_TRN_rnn_200_contextdelaydm_MD_task_retanh_seed_'
+        #'full_EI_CC_TC_with_TRN_shared_h_contextdelaydm_MD_task_retanh_seed_',
         #'sparse_control_EI_TC_with_TRN_contextdelaydm_MD_task_relu_seed_',
         #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',
                   ]
