@@ -1008,15 +1008,13 @@ class Model(object):
                     """)
 
         if 'transfer_h_across_trials' in hp and hp['transfer_h_across_trials']:
-            self.h_last = tf.compat.v1.placeholder("float", [None, n_rnn])
-
-            # Dynamic rnn with time major
-            self.h, states = rnn.dynamic_rnn(
-                cell, self.x, dtype=tf.float32, time_major=True, initial_state=self.h_last)
+            self.h_init = tf.compat.v1.placeholder("float", [None, n_rnn])
         else:
-            # Dynamic rnn with time major
-            self.h, states = rnn.dynamic_rnn(
-                cell, self.x, dtype=tf.float32, time_major=True)
+            self.h_init = None
+
+        # Dynamic rnn with time major
+        self.h, states = rnn.dynamic_rnn(
+            cell, self.x, dtype=tf.float32, time_major=True, initial_state=self.h_init)
 
         # Gaussian with mean 0.0 and with output weight mask applied
         w_out0 = (self.rng.randn(n_rnn, n_output) / np.sqrt(n_output)) * self.w_masks_all['output']
@@ -1167,15 +1165,13 @@ class Model(object):
             rng=self.rng)
 
         if 'transfer_h_across_trials' in hp and hp['transfer_h_across_trials']:
-            self.h_last = tf.compat.v1.placeholder("float", [None, n_rnn])
+            self.h_init = tf.compat.v1.placeholder("float", [None, n_rnn])
+        else:
+            self.h_init = None
 
             # Dynamic rnn with time major
-            self.h, states = rnn.dynamic_rnn(
-                cell, rnn_inputs, dtype=tf.float32, time_major=True, initial_state=self.h_last)
-        else:
-            # Dynamic rnn with time major
-            self.h, states = rnn.dynamic_rnn(
-                cell, rnn_inputs, dtype=tf.float32, time_major=True)
+        self.h, states = rnn.dynamic_rnn(
+            cell, rnn_inputs, dtype=tf.float32, time_major=True, initial_state=self.h_init)
 
         # Output
         h_shaped = tf.reshape(self.h, (-1, n_rnn))
