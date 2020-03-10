@@ -374,11 +374,11 @@ def train(model_dir,
                 sess.run(model.train_step, feed_dict=feed_dict)
 
                 if 'transfer_h_across_trials' in hp and hp['transfer_h_across_trials']:
-                    if step % display_step == 0 and step > 0:
-                        transfer_h_noise = h_init - sess.run(model.h[0, :, :], feed_dict=feed_dict)
-                        transfer_h_noise = transfer_h_noise.flatten()
-                        print('Noise in transferred h states:  {:0.5f} ({:0.5f} std)'.format(np.mean(transfer_h_noise),
-                                                                                             np.std(transfer_h_noise)))
+                    # if step % display_step == 0 and step > 0:
+                    #     transfer_h_noise = h_init - sess.run(model.h[0, :, :], feed_dict=feed_dict)
+                    #     transfer_h_noise = transfer_h_noise.flatten()
+                    #     print('Noise in transferred h states:  {:0.5f} ({:0.5f} std)'.format(np.mean(transfer_h_noise),
+                    #                                                                          np.std(transfer_h_noise)))
                     h_init = sess.run(model.h[-1, :, :], feed_dict=feed_dict)
 
                 step += 1
@@ -696,7 +696,7 @@ if __name__ == '__main__':
 
     saving_path = './saved_models'
 
-    seed_range = range(0, 10)
+    seed_range = range(1, 11)
     hp = {'learning_rate': 0.001, 'n_rnn': 500, 'target_perf': 0.95,
           'use_separate_input': False, 'activation': 'retanh',
           'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False,
