@@ -200,6 +200,13 @@ def all_network_architectures(hp):
             n_modules = 20
             n_exc_units_module = int(int(hp['n_rnn'] / 5) * hp['exc_prop_RNN'])
             n_inh_units_module = int(hp['n_rnn'] / 5) - n_exc_units_module
+            if 'inh_prop_TRN' in hp:
+                n_TRN_units = int(int(hp['n_rnn'] / 5) * hp['inh_prop_TRN'])
+                n_exc_thal_units = int(hp['n_rnn'] / 5) - n_TRN_units
+            else:
+                n_TRN_units = n_inh_units_module
+                n_exc_thal_units = n_exc_units_module
+
             pre = []
             post = []
             exc_prop = []
@@ -242,27 +249,27 @@ def all_network_architectures(hp):
                         n_count += int(n_exc_units_module / 2)
 
                 elif module >= 12 and module < 16:
-                    pre.append(range(n_count, n_count + int(n_inh_units_module / 4)))
-                    post_range_start = 4 * int(hp['n_rnn'] / 5) + n_inh_units_module + (module % 12) * int(n_exc_units_module / 4)
-                    post_range_end = post_range_start + int(n_exc_units_module / 4)
+                    pre.append(range(n_count, n_count + int(n_TRN_units / 4)))
+                    post_range_start = 4 * int(hp['n_rnn'] / 5) + n_TRN_units + (module % 12) * int(n_exc_thal_units / 4)
+                    post_range_end = post_range_start + int(n_exc_thal_units / 4)
                     post.append(range(post_range_start,post_range_end))
                     exc_prop.append(0.)
-                    n_count += int(n_inh_units_module / 4)
+                    n_count += int(n_TRN_units / 4)
                 elif module >= 16:
-                    pre.append(range(n_count, n_count + int(n_exc_units_module / 4)))
+                    pre.append(range(n_count, n_count + int(n_exc_thal_units / 4)))
                     post_range_start1 = (module % 16) * int(hp['n_rnn'] / 5)
                     post_range_end1 = post_range_start1 + int(hp['n_rnn'] / 5)
-                    post_range_start2 = 4 * int(hp['n_rnn'] / 5) + (module % 16) * int(n_inh_units_module / 4)
-                    post_range_end2 = post_range_start2 + int(n_inh_units_module / 4)
+                    post_range_start2 = 4 * int(hp['n_rnn'] / 5) + (module % 16) * int(n_TRN_units / 4)
+                    post_range_end2 = post_range_start2 + int(n_TRN_units / 4)
                     post.append(np.concatenate([range(post_range_start1,post_range_end1), range(post_range_start2, post_range_end2)]))
                     exc_prop.append(1.)
-                    n_count += int(n_exc_units_module / 4)
+                    n_count += int(n_exc_thal_units / 4)
 
             network_architectures[hp['w_mask_type']]['sen_input']['post'] = [range(0, int(hp['n_rnn'] / 5)),
-                                                                             range(4 * int(hp['n_rnn'] / 5) + n_inh_units_module + int(n_exc_units_module / 4),
-                                                                                   4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 2 * int(n_exc_units_module / 4)),
-                                                                             range(4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 2 * int(n_exc_units_module / 4),
-                                                                                   4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 3 * int(n_exc_units_module / 4))
+                                                                             range(4 * int(hp['n_rnn'] / 5) + n_TRN_units + int(n_exc_thal_units / 4),
+                                                                                   4 * int(hp['n_rnn'] / 5) + n_TRN_units + 2 * int(n_exc_thal_units / 4)),
+                                                                             range(4 * int(hp['n_rnn'] / 5) + n_TRN_units + 2 * int(n_exc_thal_units / 4),
+                                                                                   4 * int(hp['n_rnn'] / 5) + n_TRN_units + 3 * int(n_exc_thal_units / 4))
                                                                              ]
 
             network_architectures[hp['w_mask_type']]['rnn'] = {

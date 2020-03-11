@@ -1097,13 +1097,19 @@ def _contextdelaydm_MD_task(config, mode, attend_mod, **kwargs):
     '''
     dt = config['dt']
     rng = config['rng']
+    n_ring_inputs = config['n_eachring']
+
     if mode == 'random': # Randomly generate parameters
         batch_size = kwargs['batch_size']
 
-        # A list of locations of stimulus, same locations for both modalities
-        stim_dist = rng.uniform(0.5*np.pi, 1.5*np.pi,(batch_size,))*rng.choice([-1,1],(batch_size,))
-        stim_mod1_locs = rng.uniform(0, 2*np.pi, (batch_size,))
-        stim_mod2_locs = (stim_mod1_locs+stim_dist)%(2*np.pi)
+        if n_ring_inputs > 8:
+            # A list of locations of stimulus, same locations for both modalities
+            stim_dist = rng.uniform(0.5*np.pi, 1.5*np.pi,(batch_size,))*rng.choice([-1,1],(batch_size,))
+            stim_mod1_locs = rng.uniform(0, 2*np.pi, (batch_size,))
+            stim_mod2_locs = (stim_mod1_locs+stim_dist)%(2*np.pi)
+        else:
+            stim_mod1_locs = rng.choice(np.arange(0, 2 * np.pi, 2 * np.pi / n_ring_inputs), (batch_size,))
+            stim_mod2_locs = rng.choice(np.arange(0, 2 * np.pi, 2 * np.pi / n_ring_inputs), (batch_size,))
 
         stim_coh_range = np.array([0.08,0.16,0.32])
         if ('easy_task' in config) and config['easy_task']:
@@ -1124,7 +1130,11 @@ def _contextdelaydm_MD_task(config, mode, attend_mod, **kwargs):
         tdim = fix_offs + int(500 / dt)  # longest trial 2500 ms
 
     elif mode == 'test':
-        n_stim_loc, n_stim_mod1_strength, n_stim_mod2_strength = batch_shape = 20, 5, 5
+        if n_ring_inputs > 8:
+            n_stim_loc, n_stim_mod1_strength, n_stim_mod2_strength = batch_shape = 20, 5, 5
+        else:
+            n_stim_loc, n_stim_mod1_strength, n_stim_mod2_strength = batch_shape = n_ring_inputs, 5, 5
+
         batch_size = np.prod(batch_shape)
         ind_stim_loc, ind_stim_mod1_strength, ind_stim_mod2_strength = np.unravel_index(range(batch_size),batch_shape)
 
