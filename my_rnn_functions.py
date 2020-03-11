@@ -717,7 +717,9 @@ def perf_pre_post_lesion(model_dir, rule, units_to_lesion, batch_size=1000):
         y_hat = sess.run(model.y_hat, feed_dict=feed_dict)
         perf_pre = get_perf(y_hat, trial.y_loc)
 
-        model.lesion_units(sess, units_to_lesion)
+        if bool(units_to_lesion):
+            model.lesion_units(sess, units_to_lesion)
+
         y_hat = sess.run(model.y_hat, feed_dict=feed_dict)
         perf_post = get_perf(y_hat, trial.y_loc)
 
