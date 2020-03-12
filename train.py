@@ -30,7 +30,7 @@ def get_default_hp(ruleset):
     num_ring = task.get_num_ring(ruleset)
     n_rule = task.get_num_rule(ruleset)
 
-    n_eachring = 8
+    n_eachring = 2
     n_input, n_output = 1+num_ring*n_eachring+n_rule, n_eachring+1
     hp = {
             # batch size for training
@@ -700,16 +700,18 @@ if __name__ == '__main__':
 
     seed_range = range(0, 1) #(0, 10)
     hp = {'learning_rate': 0.001, 'n_rnn': 100, 'target_perf': 0.95,
-          'use_separate_input': False, 'activation': 'relu',
+          'use_separate_input': False, 'activation': 'retanh',
           'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False,
           'exc_input_and_output': True, 'exc_inh_RNN': True, 'exc_prop_RNN': 0.8,
-          'transfer_h_across_trials': False}
+          'transfer_h_across_trials': True}
     hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v1', 'random_connectivity': False, 'transfer_h_across_trials': True},
+               #{**hp, 'use_w_mask': False, 'w_mask_type': None, 'exc_inh_RNN': False, 'exc_input_and_output': True, 'transfer_h_across_trials': True},
                #{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': True},
                #{**hp, 'use_w_mask': False, 'w_mask_type': None}
                ]
     names_list = [
-        'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_relu_seed_'
+        'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_'
+        #'vanilla_RNN_shared_h_contextdelaydm_MD_task_relu_seed_'
         #'full_EI_CC_TC_with_TRN_shared_h_contextdelaydm_MD_task_retanh_seed_',
         #'sparse_control_EI_TC_with_TRN_contextdelaydm_MD_task_relu_seed_',
         #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',

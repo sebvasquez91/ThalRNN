@@ -339,7 +339,8 @@ def video_activations(dict_activations, fps, downsample=None,video_name='',zscor
     return ani
 
 
-def get_all_unit_activations(model_dir, rule, params, average_activations=True, ommit_fix_unit=False, zscoring=False):
+def get_all_unit_activations(model_dir, rule, params, average_activations=True, ommit_fix_unit=False, zscoring=False,
+                             pre_trial_rule='opp_random', pre_params=None):
     """
     Args:
         model_dir : model name
@@ -358,12 +359,26 @@ def get_all_unit_activations(model_dir, rule, params, average_activations=True, 
         model.restore()
 
         trial = task.generate_trials(rule, hp, 'psychometric', params=params)
-        feed_dict = tools.gen_feed_dict(model, trial, hp)
+        h_init = None
+        if 'transfer_h_across_trials' in hp and hp['transfer_h_across_trials']:
+            batch_size=params['stim1_locs'].shape[0]
+            if pre_trial_rule == 'same':
+                pre_trial = trial
+            elif pre_trial_rule == 'same_rand':
+                pre_trial = task.generate_trials(rule, hp, 'random', batch_size=batch_size)
+            elif pre_trial_rule == 'opp_random':
+                pre_rule = rule[:-1] + str(int(rule[-1])%2+1)
+                pre_trial = task.generate_trials(pre_rule, hp, 'random', batch_size=batch_size)
+            elif pre_trial_rule == 'opp_random':
+                pre_trial = task.generate_trials(rule, hp, 'psychometric', params=pre_params)
+            feed_dict = tools.gen_feed_dict(model, pre_trial, hp, h_init)
+            h_init = sess.run(model.h[-1, :, :], feed_dict=feed_dict)
+        feed_dict = tools.gen_feed_dict(model, trial, hp, h_init)
         x = sess.run(model.x, feed_dict=feed_dict)
         h = sess.run(model.h, feed_dict=feed_dict)
         y_hat = sess.run(model.y_hat, feed_dict=feed_dict)
 
-    model_data = get_model_data(model_dir, get_clusters=False)
+    #model_data = get_model_data(model_dir, get_clusters=False)
 
     if average_activations:
         x = np.mean(x, 1)
@@ -704,17 +719,29 @@ def plot_unit_activations(activations, global_x_lims=[0, 0], global_y_lims=[0, 0
     print(global_y_lims)
 
 
-def perf_pre_post_lesion(model_dir, rule, units_to_lesion, batch_size=1000):
+def perf_pre_post_lesion(model_dir, rule, units_to_lesion, pre_trial_rule='opp_random'):
     model = Model(model_dir)
     hp = model.hp
     with tf.compat.v1.Session() as sess:
         model.restore()
+
         trial = task.generate_trials(rule, hp, 'random', batch_size=1000)
-        feed_dict = tools.gen_feed_dict(model, trial, hp)
+        h_init = None
+        if 'transfer_h_across_trials' in hp and hp['transfer_h_across_trials']:
+            if pre_trial_rule == 'same':
+                pre_trial = trial
+            elif pre_trial_rule == 'same_rand':
+                pre_trial = task.generate_trials(rule, hp, 'random', batch_size=1000)
+            elif pre_trial_rule == 'opp_random':
+                pre_rule = rule[:-1] + str(int(rule[-1])%2+1)
+                pre_trial = task.generate_trials(pre_rule, hp, 'random', batch_size=1000)
+            feed_dict = tools.gen_feed_dict(model, pre_trial, hp, h_init)
+            h_init = sess.run(model.h[-1, :, :], feed_dict=feed_dict)
+        feed_dict = tools.gen_feed_dict(model, trial, hp, h_init)
         #x = sess.run(model.x, feed_dict=feed_dict)
         #h = sess.run(model.h, feed_dict=feed_dict)
-
         y_hat = sess.run(model.y_hat, feed_dict=feed_dict)
+
         perf_pre = get_perf(y_hat, trial.y_loc)
 
         if bool(units_to_lesion):
