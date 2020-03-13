@@ -274,6 +274,8 @@ def train(model_dir,
     t_start = time.time()
 
     h_init = None
+    performance_reached = False
+    interrupt = False
 
     with tf.compat.v1.Session() as sess:
         if load_dir is not None:
@@ -357,6 +359,7 @@ def train(model_dir,
                     if log['perf_min'][-1] > model.hp['target_perf']:
                         print('Perf reached the target: {:0.2f}'.format(
                             hp['target_perf']))
+                        performance_reached = True
                         break
 
                     if rich_output:
@@ -387,9 +390,12 @@ def train(model_dir,
 
             except KeyboardInterrupt:
                 print("Optimization interrupted by user")
+                interrupt = True
                 break
 
         print("Optimization finished!")
+
+    return performance_reached, interrupt
 
 
 def train_sequential(
@@ -721,10 +727,10 @@ if __name__ == '__main__':
         #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',
                   ]
 
-    load_model = 'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_0'
-    #load_model = None
+    reload_model = 'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_0'
+    #reload_model = None
 
-    if load_model is None:
+    if reload_model is None:
         for hp, name in zip(hp_list, names_list):
             for seed in seed_range:
                 model_name = name + str(seed)
@@ -747,32 +753,35 @@ if __name__ == '__main__':
                     except:
                         print('File copying to Dropbox failed.')
     else:
+        performance_reached = False
+        interrupt = False
 
-        load_model = sorted([basename(folder[0]) for folder in walk(saving_path) if basename(folder[0]).startswith(load_model)])[-1]
+        while performance_reached is False and interrupt is False:
+            load_model_name = sorted([basename(folder[0]) for folder in walk(saving_path) if basename(folder[0]).startswith(reload_model)])[-1]
 
-        if load_model[-5:-1] == 'part':
-            model_name = load_model[:-1] + str(int(load_model[-1])+1)
-        else:
-            model_name = load_model + '_part2'
-        model_dir = join(saving_path, model_name)
-        load_dir = join(saving_path, load_model)
-        hp = tools.load_hp(load_dir)
-        seed = hp['seed']
+            if '_part' in load_model_name[-8:-1]:
+                model_name = load_model_name.split('_part')[0] + '_part' + str(int(load_model_name.split('_part')[-1])+1)
+            else:
+                model_name = load_model_name + '_part2'
+            model_dir = join(saving_path, model_name)
+            load_dir = join(saving_path, load_model_name)
+            hp = tools.load_hp(load_dir)
+            seed = hp['seed']
 
-        train(model_dir,
-              load_dir=load_dir,
-              seed=seed,
-              hp=hp,
-              ruleset='contextdelaydm_MD_task',
-              rich_output=False,
-              max_steps=1e7,
-              display_step=500)
+            performance_reached, interrupt = train(model_dir,
+                                                   load_dir=load_dir,
+                                                   seed=seed,
+                                                   hp=hp,
+                                                   ruleset='contextdelaydm_MD_task',
+                                                   rich_output=False,
+                                                   max_steps=2e5,
+                                                   display_step=500)
 
-        if platform.system() == 'Linux':
-            home = expanduser('~')
-            src = 'My_scripts_Local/Models_Local/ThalRNN/saved_models/'
-            dest = 'Dropbox/Trained_models/ThalRNN/saved_models/'
-            try:
-                shutil.copytree(join(home, src, model_name), join(home, dest, model_name))
-            except:
-                print('File copying to Dropbox failed.')
+            if platform.system() == 'Linux':
+                home = expanduser('~')
+                src = 'My_scripts_Local/Models_Local/ThalRNN/saved_models/'
+                dest = 'Dropbox/Trained_models/ThalRNN/saved_models/'
+                try:
+                    shutil.copytree(join(home, src, model_name), join(home, dest, model_name))
+                except:
+                    print('File copying to Dropbox failed.')
