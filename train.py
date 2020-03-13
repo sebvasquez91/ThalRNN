@@ -696,6 +696,7 @@ if __name__ == '__main__':
     from os.path import expanduser, join, basename
     import shutil
     import platform
+    from os import walk
 
     saving_path = './saved_models'
 
@@ -720,7 +721,7 @@ if __name__ == '__main__':
         #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',
                   ]
 
-    load_model = 'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_0'
+    load_model = 'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_0'
     #load_model = None
 
     if load_model is None:
@@ -746,6 +747,9 @@ if __name__ == '__main__':
                     except:
                         print('File copying to Dropbox failed.')
     else:
+
+        load_model = sorted([basename(folder[0]) for folder in walk(saving_path) if basename(folder[0]).startswith(load_model)])[-1]
+
         if load_model[-5:-1] == 'part':
             model_name = load_model[:-1] + str(int(load_model[-1])+1)
         else:
