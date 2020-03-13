@@ -759,10 +759,10 @@ if __name__ == '__main__':
         while performance_reached is False and interrupt is False:
             load_model_name = sorted([basename(folder[0]) for folder in walk(saving_path) if basename(folder[0]).startswith(reload_model)])[-1]
 
-            if '_part' in load_model_name[-8:-1]:
-                model_name = load_model_name.split('_part')[0] + '_part' + str(int(load_model_name.split('_part')[-1])+1)
+            if '_part' in load_model_name[-9:]:
+                model_name = load_model_name.split('_part')[0] + '_part' + str(int(load_model_name.split('_part')[-1])+1).zfill(4)
             else:
-                model_name = load_model_name + '_part2'
+                model_name = load_model_name + '_part0002'
             model_dir = join(saving_path, model_name)
             load_dir = join(saving_path, load_model_name)
             hp = tools.load_hp(load_dir)
