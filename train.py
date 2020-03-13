@@ -210,6 +210,7 @@ def train(model_dir,
           rich_output=False,
           load_dir=None,
           trainables=None,
+          h_init=None
           ):
     """Train the network.
 
@@ -273,7 +274,7 @@ def train(model_dir,
     # Record time
     t_start = time.time()
 
-    h_init = None
+    #h_init = None
     performance_reached = False
     interrupt = False
 
@@ -395,7 +396,7 @@ def train(model_dir,
 
         print("Optimization finished!")
 
-    return performance_reached, interrupt
+    return performance_reached, interrupt, h_init
 
 
 def train_sequential(
@@ -688,7 +689,7 @@ def train_rule_only(
         print("Optimization Finished!")
 
 
-def continue_training(reload_model, performance_reached=False, interrupt=False):
+def continue_training(reload_model, performance_reached=False, interrupt=False, h_init=None):
     while performance_reached is False and interrupt is False:
         load_model_name = sorted([basename(folder[0]) for folder in walk(saving_path) if basename(folder[0]).startswith(reload_model)])[-1]
 
@@ -701,14 +702,15 @@ def continue_training(reload_model, performance_reached=False, interrupt=False):
         hp = tools.load_hp(load_dir)
         seed = hp['seed']
 
-        performance_reached, interrupt = train(model_dir,
-                                               load_dir=load_dir,
-                                               seed=seed,
-                                               hp=hp,
-                                               ruleset='contextdelaydm_MD_task',
-                                               rich_output=False,
-                                               max_steps=2e5,
-                                               display_step=500)
+        performance_reached, interrupt, h_init = train(model_dir,
+                                                       load_dir=load_dir,
+                                                       seed=seed,
+                                                       hp=hp,
+                                                       ruleset='contextdelaydm_MD_task',
+                                                       rich_output=False,
+                                                       max_steps=2e5,
+                                                       display_step=500,
+                                                       h_init=h_init)
 
         if platform.system() == 'Linux':
             home = expanduser('~')
@@ -758,7 +760,7 @@ if __name__ == '__main__':
         #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',
                   ]
 
-    #reload_model = 'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_0'
+    #reload_model = 'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_1'
     reload_model = None
 
     if reload_model is None:
@@ -769,13 +771,13 @@ if __name__ == '__main__':
 
                 performance_reached, interrupt = False, False
                 if not exists(model_dir):
-                    performance_reached, interrupt = train(model_dir,
-                          seed=seed,
-                          hp=hp,
-                          ruleset='contextdelaydm_MD_task',
-                          rich_output=False,
-                          max_steps=2e5, #1e7,
-                          display_step=500)
+                    performance_reached, interrupt, h_init = train(model_dir,
+                                                                   seed=seed,
+                                                                   hp=hp,
+                                                                   ruleset='contextdelaydm_MD_task',
+                                                                   rich_output=False,
+                                                                   max_steps=2e5,  # 1e7,
+                                                                   display_step=500)
 
                     if platform.system() == 'Linux':
                         home = expanduser('~')
@@ -786,7 +788,7 @@ if __name__ == '__main__':
                         except:
                             print('File copying to Dropbox failed.')
 
-                continue_training(basename(model_dir), performance_reached, interrupt)
+                continue_training(basename(model_dir), performance_reached, interrupt, h_init)
     else:
         continue_training(reload_model)
 
