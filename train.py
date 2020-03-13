@@ -88,7 +88,7 @@ def get_default_hp(ruleset):
             # number of output units
             'n_output': n_output,
             # number of recurrent units
-            'n_rnn': 200,
+            'n_rnn': 100,
             # number of input units
             'ruleset': ruleset,
             # name to save
@@ -688,6 +688,37 @@ def train_rule_only(
         print("Optimization Finished!")
 
 
+def continue_training(reload_model, performance_reached=False, interrupt=False):
+    while performance_reached is False and interrupt is False:
+        load_model_name = sorted([basename(folder[0]) for folder in walk(saving_path) if basename(folder[0]).startswith(reload_model)])[-1]
+
+        if '_part' in load_model_name[-9:]:
+            model_name = load_model_name.split('_part')[0] + '_part' + str(int(load_model_name.split('_part')[-1]) + 1).zfill(4)
+        else:
+            model_name = load_model_name + '_part0002'
+        model_dir = join(saving_path, model_name)
+        load_dir = join(saving_path, load_model_name)
+        hp = tools.load_hp(load_dir)
+        seed = hp['seed']
+
+        performance_reached, interrupt = train(model_dir,
+                                               load_dir=load_dir,
+                                               seed=seed,
+                                               hp=hp,
+                                               ruleset='contextdelaydm_MD_task',
+                                               rich_output=False,
+                                               max_steps=2e5,
+                                               display_step=500)
+
+        if platform.system() == 'Linux':
+            home = expanduser('~')
+            src = 'My_scripts_Local/Models_Local/ThalRNN/saved_models/'
+            dest = 'Dropbox/Trained_models/ThalRNN/saved_models/'
+            try:
+                shutil.copytree(join(home, src, model_name), join(home, dest, model_name))
+            except:
+                print('File copying to Dropbox failed.')
+
 if __name__ == '__main__':
     # import argparse
     # import os
@@ -699,36 +730,36 @@ if __name__ == '__main__':
     #
     # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-    from os.path import expanduser, join, basename
+    from os.path import expanduser, join, basename, exists
     import shutil
     import platform
     from os import walk
 
     saving_path = './saved_models'
 
-    seed_range = range(0, 10) #(0, 10)
-    hp = {'learning_rate': 0.001, 'n_rnn': 50, 'target_perf': 0.95,
+    seed_range = range(1, 10) #(0, 10)
+    hp = {'learning_rate': 0.001, 'n_rnn': 100, 'target_perf': 0.95,
           'use_separate_input': False, 'activation': 'retanh',
           'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False,
           'exc_input_and_output': True, 'exc_inh_RNN': True, 'exc_prop_RNN': 0.8,
           'transfer_h_across_trials': True}
-    hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'single_module_TC_with_TRN', 'random_connectivity': False, 'transfer_h_across_trials': True},
-               #{**hp, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v1', 'random_connectivity': False, 'transfer_h_across_trials': True},
+    hp_list = [#{**hp, 'n_rnn': 100, 'use_w_mask': True, 'w_mask_type': 'single_module_TC_with_TRN', 'random_connectivity': False, 'transfer_h_across_trials': True},
+               {**hp, 'n_rnn': 100, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v1', 'random_connectivity': False, 'transfer_h_across_trials': True},
                #{**hp, 'use_w_mask': False, 'w_mask_type': None, 'exc_inh_RNN': False, 'exc_input_and_output': True, 'transfer_h_across_trials': True},
                #{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': True},
                #{**hp, 'use_w_mask': False, 'w_mask_type': None}
                ]
     names_list = [
-        'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_'
-        #'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_'
+        #'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_'
+        'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_'
         #'vanilla_RNN_shared_h_contextdelaydm_MD_task_relu_seed_'
         #'full_EI_CC_TC_with_TRN_shared_h_contextdelaydm_MD_task_retanh_seed_',
         #'sparse_control_EI_TC_with_TRN_contextdelaydm_MD_task_relu_seed_',
         #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',
                   ]
 
-    reload_model = 'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_0'
-    #reload_model = None
+    #reload_model = 'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_0'
+    reload_model = None
 
     if reload_model is None:
         for hp, name in zip(hp_list, names_list):
@@ -736,52 +767,27 @@ if __name__ == '__main__':
                 model_name = name + str(seed)
                 model_dir = join(saving_path, model_name)
 
-                train(model_dir,
-                      seed=seed,
-                      hp=hp,
-                      ruleset='contextdelaydm_MD_task',
-                      rich_output=False,
-                      max_steps=1e7,
-                      display_step=500)
+                performance_reached, interrupt = False, False
+                if not exists(model_dir):
+                    performance_reached, interrupt = train(model_dir,
+                          seed=seed,
+                          hp=hp,
+                          ruleset='contextdelaydm_MD_task',
+                          rich_output=False,
+                          max_steps=2e5, #1e7,
+                          display_step=500)
 
-                if platform.system() == 'Linux':
-                    home = expanduser('~')
-                    src = 'My_scripts_Local/Models_Local/ThalRNN/saved_models/'
-                    dest = 'Dropbox/Trained_models/ThalRNN/saved_models/'
-                    try:
-                        shutil.copytree(join(home, src, model_name), join(home, dest, model_name))
-                    except:
-                        print('File copying to Dropbox failed.')
+                    if platform.system() == 'Linux':
+                        home = expanduser('~')
+                        src = 'My_scripts_Local/Models_Local/ThalRNN/saved_models/'
+                        dest = 'Dropbox/Trained_models/ThalRNN/saved_models/'
+                        try:
+                            shutil.copytree(join(home, src, model_name), join(home, dest, model_name))
+                        except:
+                            print('File copying to Dropbox failed.')
+
+                continue_training(basename(model_dir), performance_reached, interrupt)
     else:
-        performance_reached = False
-        interrupt = False
+        continue_training(reload_model)
 
-        while performance_reached is False and interrupt is False:
-            load_model_name = sorted([basename(folder[0]) for folder in walk(saving_path) if basename(folder[0]).startswith(reload_model)])[-1]
 
-            if '_part' in load_model_name[-9:]:
-                model_name = load_model_name.split('_part')[0] + '_part' + str(int(load_model_name.split('_part')[-1])+1).zfill(4)
-            else:
-                model_name = load_model_name + '_part0002'
-            model_dir = join(saving_path, model_name)
-            load_dir = join(saving_path, load_model_name)
-            hp = tools.load_hp(load_dir)
-            seed = hp['seed']
-
-            performance_reached, interrupt = train(model_dir,
-                                                   load_dir=load_dir,
-                                                   seed=seed,
-                                                   hp=hp,
-                                                   ruleset='contextdelaydm_MD_task',
-                                                   rich_output=False,
-                                                   max_steps=2e5,
-                                                   display_step=500)
-
-            if platform.system() == 'Linux':
-                home = expanduser('~')
-                src = 'My_scripts_Local/Models_Local/ThalRNN/saved_models/'
-                dest = 'Dropbox/Trained_models/ThalRNN/saved_models/'
-                try:
-                    shutil.copytree(join(home, src, model_name), join(home, dest, model_name))
-                except:
-                    print('File copying to Dropbox failed.')
