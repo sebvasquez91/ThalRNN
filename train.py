@@ -727,7 +727,7 @@ if __name__ == '__main__':
         #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',
                   ]
 
-    reload_model = 'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_0'
+    reload_model = 'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_0'
     #reload_model = None
 
     if reload_model is None:

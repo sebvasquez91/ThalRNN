@@ -1,4 +1,5 @@
-from os.path import join
+from os.path import join, basename, dirname, abspath
+from os import walk
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -146,10 +147,22 @@ def get_learnt_weights(model_dir, hp):
 
 def plot_performanceprogress(model_dir, rule_color, ax=None, fig=None, rule_plot=None, label=None, show_legend=False):
     # Plot Training Progress
-    log = tools.load_log(model_dir)
-    hp = tools.load_hp(model_dir)
+    model_parts = sorted([folder[0] for folder in walk(dirname(abspath(model_dir))) if basename(folder[0]).startswith(basename(model_dir))])
+    hp = tools.load_hp(model_parts[0])
 
-    trials = log['trials']
+    log = {}
+    trials = []
+    trial_count = 0
+
+    for rule in rule_plot:
+        log = {**log, 'cost_'+rule: [], 'perf_'+rule: []}
+    for model_part in model_parts:
+        temp_log = tools.load_log(model_part)
+        trials = trials + [t  + trial_count for t in temp_log['trials']]
+        trial_count = trials[-1]
+        for rule in rule_plot:
+            log['cost_'+rule] = log['cost_'+rule] + temp_log['cost_'+rule]
+            log['perf_' + rule] = log['perf_' + rule] + temp_log['perf_' + rule]
 
     fs = 14 # fontsize
     
@@ -243,10 +256,10 @@ def plt_various_performances(trained_models,models_saving_dir='./saved_models',r
 
         model_dir = join(models_saving_dir,trained_model)
         print(model_dir)
-        try:
-            _, ax = plot_performanceprogress(model_dir, fig=fig_all , ax=ax, rule_color=rule_color,show_legend=False,label=label,rule_plot=rules)
-        except:
-            continue
+        #try:
+        _, ax = plot_performanceprogress(model_dir, fig=fig_all , ax=ax, rule_color=rule_color,show_legend=False,label=label,rule_plot=rules)
+        #except:
+            #continue
 
     ax.plot([0,ax.get_xlim()[1]],[0.95,0.95],'k',linestyle=':')
     #ax.set_xlim([0,ax.get_xlim()[1]])
