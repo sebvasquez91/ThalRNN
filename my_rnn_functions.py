@@ -209,6 +209,10 @@ def plt_various_performances(trained_models,models_saving_dir='./saved_models',r
     else:
         rule_color_pairs = ['bright purple','green blue','indigo','grey blue','lavender','aqua']
 
+    if len(trained_models) > len(rule_color_pairs):
+        for i in range(int(np.ceil(len(trained_models)/len(rule_color_pairs)))):
+            rule_color_pairs = rule_color_pairs + rule_color_pairs
+
     fig_all = plt.figure(figsize=(15,6))
 
     custom_lines = []
@@ -239,7 +243,10 @@ def plt_various_performances(trained_models,models_saving_dir='./saved_models',r
 
         model_dir = join(models_saving_dir,trained_model)
         print(model_dir)
-        _, ax = plot_performanceprogress(model_dir, fig=fig_all , ax=ax, rule_color=rule_color,show_legend=False,label=label,rule_plot=rules)
+        try:
+            _, ax = plot_performanceprogress(model_dir, fig=fig_all , ax=ax, rule_color=rule_color,show_legend=False,label=label,rule_plot=rules)
+        except:
+            continue
 
     ax.plot([0,ax.get_xlim()[1]],[0.95,0.95],'k',linestyle=':')
     #ax.set_xlim([0,ax.get_xlim()[1]])

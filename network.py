@@ -96,7 +96,7 @@ def get_perf(y_hat, y_loc):
 
 def all_network_architectures(hp):
     network_architectures = {
-        'basic_TC': {
+        'basic_TC': { # multiple cortical modules
             'sen_input': {
                 'n_modules': 3,
                 'pre': [range(1 + i * hp['n_eachring'], 1 + (i+1) * hp['n_eachring']) if i >= 0 else [0] for i in range(-1,2)],
@@ -125,7 +125,45 @@ def all_network_architectures(hp):
                 'rec': [False],
                 'EI_balance': [False],
                 'exc_prop': [None]}
-                }
+        },
+        'single_module_TC_with_TRN': {
+            'sen_input': {
+                'n_modules': 1,
+                'pre': ['all'],
+                'post': [range(int(0.7 * hp['n_rnn']), int(0.8 * hp['n_rnn']))],
+                'rec': [False],
+                'EI_balance': [False],
+                'exc_prop': [None]},
+            'rule_input': {
+                'n_modules': 1,
+                'pre': ['all'],
+                'post': [range(0, int(0.6 * hp['n_rnn']))],
+                'rec': [False],
+                'EI_balance': [False],
+                'exc_prop': [None]},
+            'rnn': {
+                'n_modules': 4,
+                'pre': [range(0, int(0.6 * hp['n_rnn'])),
+                        range(int(0.6 * hp['n_rnn']), int(0.7 * hp['n_rnn'])),
+                        range(int(0.7 * hp['n_rnn']), int(0.8 * hp['n_rnn'])),
+                        range(int(0.8 * hp['n_rnn']), hp['n_rnn'])
+                        ],
+                'post': [range(int(0.6 * hp['n_rnn']), hp['n_rnn']),
+                         range(int(0.7 * hp['n_rnn']), hp['n_rnn']),
+                         range(0, int(0.7 * hp['n_rnn'])),
+                         range(0, int(0.7 * hp['n_rnn']))
+                         ],
+                'rec': [True, True, False, False],
+                'EI_balance': [True for i in range(4)],
+                'exc_prop': [0.8, 0.0, 1.0, 1.0]},
+            'output': {
+                'n_modules': 1,
+                'pre': ['all'],
+                'post': [range(int(int(0.6 * hp['n_rnn'])*0.2), int(0.6 * hp['n_rnn']))],
+                'rec': [False],
+                'EI_balance': [False],
+                'exc_prop': [None]}
+        }
         }
 
     network_architectures['basic_TC_exc_in_out'] = network_architectures['basic_TC']

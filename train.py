@@ -693,43 +693,78 @@ if __name__ == '__main__':
     #
     # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-    from os.path import expanduser, join
+    from os.path import expanduser, join, basename
     import shutil
+    import platform
 
     saving_path = './saved_models'
 
-    seed_range = range(0, 1) #(0, 10)
-    hp = {'learning_rate': 0.001, 'n_rnn': 100, 'target_perf': 0.95,
+    seed_range = range(0, 10) #(0, 10)
+    hp = {'learning_rate': 0.001, 'n_rnn': 50, 'target_perf': 0.95,
           'use_separate_input': False, 'activation': 'retanh',
           'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False,
           'exc_input_and_output': True, 'exc_inh_RNN': True, 'exc_prop_RNN': 0.8,
           'transfer_h_across_trials': True}
-    hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v1', 'random_connectivity': False, 'transfer_h_across_trials': True},
+    hp_list = [{**hp, 'use_w_mask': True, 'w_mask_type': 'single_module_TC_with_TRN', 'random_connectivity': False, 'transfer_h_across_trials': True},
+               #{**hp, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v1', 'random_connectivity': False, 'transfer_h_across_trials': True},
                #{**hp, 'use_w_mask': False, 'w_mask_type': None, 'exc_inh_RNN': False, 'exc_input_and_output': True, 'transfer_h_across_trials': True},
                #{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': True},
                #{**hp, 'use_w_mask': False, 'w_mask_type': None}
                ]
     names_list = [
-        'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_'
+        'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_'
+        #'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_'
         #'vanilla_RNN_shared_h_contextdelaydm_MD_task_relu_seed_'
         #'full_EI_CC_TC_with_TRN_shared_h_contextdelaydm_MD_task_retanh_seed_',
         #'sparse_control_EI_TC_with_TRN_contextdelaydm_MD_task_relu_seed_',
         #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',
                   ]
 
-    for hp, name in zip(hp_list, names_list):
-        for seed in seed_range:
-            model_name = name + str(seed)
-            model_dir = join(saving_path, model_name)
+    load_model = 'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_0'
+    #load_model = None
 
-            train(model_dir,
-                  seed=seed,
-                  hp=hp,
-                  ruleset='contextdelaydm_MD_task',
-                  rich_output=False,
-                  max_steps=1e7,
-                  display_step=500)
+    if load_model is None:
+        for hp, name in zip(hp_list, names_list):
+            for seed in seed_range:
+                model_name = name + str(seed)
+                model_dir = join(saving_path, model_name)
 
+                train(model_dir,
+                      seed=seed,
+                      hp=hp,
+                      ruleset='contextdelaydm_MD_task',
+                      rich_output=False,
+                      max_steps=1e7,
+                      display_step=500)
+
+                if platform.system() == 'Linux':
+                    home = expanduser('~')
+                    src = 'My_scripts_Local/Models_Local/ThalRNN/saved_models/'
+                    dest = 'Dropbox/Trained_models/ThalRNN/saved_models/'
+                    try:
+                        shutil.copytree(join(home, src, model_name), join(home, dest, model_name))
+                    except:
+                        print('File copying to Dropbox failed.')
+    else:
+        if load_model[-5:-1] == 'part':
+            model_name = load_model[:-1] + str(int(load_model[-1])+1)
+        else:
+            model_name = load_model + '_part2'
+        model_dir = join(saving_path, model_name)
+        load_dir = join(saving_path, load_model)
+        hp = tools.load_hp(load_dir)
+        seed = hp['seed']
+
+        train(model_dir,
+              load_dir=load_dir,
+              seed=seed,
+              hp=hp,
+              ruleset='contextdelaydm_MD_task',
+              rich_output=False,
+              max_steps=1e7,
+              display_step=500)
+
+        if platform.system() == 'Linux':
             home = expanduser('~')
             src = 'My_scripts_Local/Models_Local/ThalRNN/saved_models/'
             dest = 'Dropbox/Trained_models/ThalRNN/saved_models/'
