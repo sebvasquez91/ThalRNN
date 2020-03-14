@@ -210,7 +210,8 @@ def train(model_dir,
           rich_output=False,
           load_dir=None,
           trainables=None,
-          h_init=None
+          h_init=None,
+          dynamic_rule_prob=False
           ):
     """Train the network.
 
@@ -365,6 +366,10 @@ def train(model_dir,
 
                     if rich_output:
                         display_rich_output(model, sess, step, log, model_dir)
+
+                    if dynamic_rule_prob:
+                        hp['rule_probs'] = [1-log['perf_' + rule][-1] for rule in hp['rule_trains']]
+                        hp['rule_probs'] = [p/sum(hp['rule_probs']) for p in hp['rule_probs']]
 
                 # Training
                 rule_train_now = hp['rng'].choice(hp['rule_trains'],
@@ -710,7 +715,8 @@ def continue_training(reload_model, performance_reached=False, interrupt=False, 
                                                        rich_output=False,
                                                        max_steps=2e5,
                                                        display_step=500,
-                                                       h_init=h_init)
+                                                       h_init=h_init,
+                                                       dynamic_rule_prob=True)
 
         if platform.system() == 'Linux':
             home = expanduser('~')
@@ -769,7 +775,7 @@ if __name__ == '__main__':
                 model_name = name + str(seed)
                 model_dir = join(saving_path, model_name)
 
-                performance_reached, interrupt = False, False
+                performance_reached, interrupt, h_init = False, False, None
                 if not exists(model_dir):
                     performance_reached, interrupt, h_init = train(model_dir,
                                                                    seed=seed,
@@ -777,7 +783,8 @@ if __name__ == '__main__':
                                                                    ruleset='contextdelaydm_MD_task',
                                                                    rich_output=False,
                                                                    max_steps=2e5,  # 1e7,
-                                                                   display_step=500)
+                                                                   display_step=500,
+                                                                   dynamic_rule_prob=True)
 
                     if platform.system() == 'Linux':
                         home = expanduser('~')

@@ -158,7 +158,7 @@ def plot_performanceprogress(model_dir, rule_color, ax=None, fig=None, rule_plot
         log = {**log, 'cost_'+rule: [], 'perf_'+rule: []}
     for model_part in model_parts:
         temp_log = tools.load_log(model_part)
-        trials = trials + [t  + trial_count for t in temp_log['trials']]
+        trials = trials + [t + trial_count for t in temp_log['trials']]
         trial_count = trials[-1]
         for rule in rule_plot:
             log['cost_'+rule] = log['cost_'+rule] + temp_log['cost_'+rule]
@@ -182,9 +182,9 @@ def plot_performanceprogress(model_dir, rule_color, ax=None, fig=None, rule_plot
     for i, rule in enumerate(rule_plot):
         # line = ax1.plot(x_plot, np.log10(cost_tests[rule]),color=color_rules[i%26])
         # ax2.plot(x_plot, perf_tests[rule],color=color_rules[i%26])
-        line = ax.plot(x_plot, np.log10(log['cost_'+rule]),
-                       color=rule_color[rule])
-        ax.plot(x_plot, log['perf_'+rule], color=rule_color[rule])
+        # line = ax.plot(x_plot, np.log10(log['cost_'+rule]),
+        #                color=rule_color[rule])
+        line = ax.plot(x_plot, log['perf_'+rule], color=rule_color[rule])
         lines.append(line[0])
         if label:
             labels.append(label)
