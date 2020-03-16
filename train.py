@@ -751,16 +751,16 @@ if __name__ == '__main__':
           'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False,
           'exc_input_and_output': True, 'exc_inh_RNN': True, 'exc_prop_RNN': 0.8,
           'transfer_h_across_trials': True}
-    hp_list = [{**hp, 'n_rnn': 100, 'use_w_mask': True, 'w_mask_type': 'single_module_TC_with_TRN_v2', 'random_connectivity': False, 'transfer_h_across_trials': True},
-               {**hp, 'n_rnn': 100, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v2', 'random_connectivity': False, 'transfer_h_across_trials': True},
+    hp_list = [{**hp, 'n_rnn': 100, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v2', 'random_connectivity': False, 'transfer_h_across_trials': True},
+               {**hp, 'n_rnn': 100, 'use_w_mask': True, 'w_mask_type': 'single_module_TC_with_TRN_v2', 'random_connectivity': False, 'transfer_h_across_trials': True},
                #{**hp, 'n_rnn': 100, 'use_w_mask': False, 'w_mask_type': None, 'exc_inh_RNN': False, 'exc_input_and_output': True, 'transfer_h_across_trials': True},
                #{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': True},
                #{**hp, 'use_w_mask': False, 'w_mask_type': None}
                ]
     names_list = [
-        'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v2_seed_'
-        'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v2_seed_'
-        #'vanilla_RNN_shared_h_contextdelaydm_MD_task_retanh_seed_'
+        'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v2_seed_',
+        'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v2_seed_',
+        #'vanilla_RNN_shared_h_contextdelaydm_MD_task_retanh_seed_',
         #'full_EI_CC_TC_with_TRN_shared_h_contextdelaydm_MD_task_retanh_seed_',
         #'sparse_control_EI_TC_with_TRN_contextdelaydm_MD_task_relu_seed_',
         #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',
