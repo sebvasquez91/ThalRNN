@@ -95,6 +95,15 @@ def get_perf(y_hat, y_loc):
 
 
 def all_network_architectures(hp):
+    n_exc_units_module = int(int(hp['n_rnn'] / 5) * hp['exc_prop_RNN'])
+    n_inh_units_module = int(hp['n_rnn'] / 5) - n_exc_units_module
+    if 'inh_prop_TRN' in hp:
+        n_TRN_units = int(int(hp['n_rnn'] / 5) * hp['inh_prop_TRN'])
+        n_exc_thal_units = int(hp['n_rnn'] / 5) - n_TRN_units
+    else:
+        n_TRN_units = n_inh_units_module
+        n_exc_thal_units = n_exc_units_module
+
     network_architectures = {
         'basic_TC': { # multiple cortical modules
             'sen_input': {
@@ -126,40 +135,44 @@ def all_network_architectures(hp):
                 'EI_balance': [False],
                 'exc_prop': [None]}
         },
-        'single_module_TC_with_TRN': {
+        'single_module_TC_with_TRN_v2': {
             'sen_input': {
                 'n_modules': 1,
                 'pre': ['all'],
-                'post': [range(int(0.7 * hp['n_rnn']), int(0.8 * hp['n_rnn']))],
+                'post': [range(int(0.85 * hp['n_rnn']), int(0.9 * hp['n_rnn']))], # to FO thalamus
                 'rec': [False],
                 'EI_balance': [False],
                 'exc_prop': [None]},
             'rule_input': {
                 'n_modules': 1,
                 'pre': ['all'],
-                'post': [range(0, int(0.6 * hp['n_rnn']))],
+                'post': [range(0, int(0.75 * hp['n_rnn']))], # to cortex
                 'rec': [False],
                 'EI_balance': [False],
                 'exc_prop': [None]},
             'rnn': {
-                'n_modules': 4,
-                'pre': [range(0, int(0.6 * hp['n_rnn'])),
-                        range(int(0.6 * hp['n_rnn']), int(0.7 * hp['n_rnn'])),
-                        range(int(0.7 * hp['n_rnn']), int(0.8 * hp['n_rnn'])),
-                        range(int(0.8 * hp['n_rnn']), hp['n_rnn'])
+                'n_modules': 6,
+                'pre': [range(0, int(0.75 * hp['n_rnn'] * (1 - hp['exc_prop_RNN']))), # from inh cortex
+                        range(int(0.75 * hp['n_rnn'] * (1 - hp['exc_prop_RNN'])), int(0.75 * hp['n_rnn'] * (1 - hp['exc_prop_RNN']/2))), # from CC cortex
+                        range(int(0.75 * hp['n_rnn'] * (1 - hp['exc_prop_RNN']/2)), int(0.75 * hp['n_rnn'])), # from CT cortex
+                        range(int(0.75 * hp['n_rnn']), int(0.85 * hp['n_rnn'])), # from TRN
+                        range(int(0.85 * hp['n_rnn']), int(0.9 * hp['n_rnn'])), # from FO thalamus
+                        range(int(0.9 * hp['n_rnn']), hp['n_rnn']) # from HO thalamus
                         ],
-                'post': [range(int(0.6 * hp['n_rnn']), hp['n_rnn']),
-                         range(int(0.7 * hp['n_rnn']), hp['n_rnn']),
-                         range(0, int(0.7 * hp['n_rnn'])),
-                         range(0, int(0.7 * hp['n_rnn']))
+                'post': [range(0, int(0.75 * hp['n_rnn'])), # to all ctx
+                         range(0, int(0.75 * hp['n_rnn'])),  # to all ctx
+                         range(0, hp['n_rnn']), # to all ctx + TRN + thalamus
+                         range(int(0.85 * hp['n_rnn']), hp['n_rnn']), # to exc thalamus
+                         range(0, int(0.85 * hp['n_rnn'])), # to all ctx + TRN
+                         range(0, int(0.85 * hp['n_rnn'])) # to all ctx + TRN
                          ],
-                'rec': [True, True, False, False],
-                'EI_balance': [True for i in range(4)],
-                'exc_prop': [0.8, 0.0, 1.0, 1.0]},
+                'rec': [True, True, True, True, False, False],
+                'EI_balance': [True for i in range(6)],
+                'exc_prop': [0.0, 1.0, 1.0, 0.0, 1.0, 1.0]},
             'output': {
                 'n_modules': 1,
                 'pre': ['all'],
-                'post': [range(int(int(0.6 * hp['n_rnn'])*0.2), int(0.6 * hp['n_rnn']))],
+                'post': [range(int(hp['n_rnn'] * (1.75 - hp['exc_prop_RNN'])/2), int(0.75 * hp['n_rnn']))], # from CT ctx
                 'rec': [False],
                 'EI_balance': [False],
                 'exc_prop': [None]}
@@ -169,7 +182,7 @@ def all_network_architectures(hp):
     network_architectures['basic_TC_exc_in_out'] = network_architectures['basic_TC']
     network_architectures['EI_basic_TC_exc_in'] = network_architectures['basic_TC']
     network_architectures['basic_EI_TC_with_TRN'] = network_architectures['basic_TC']
-    network_architectures['full_EI_CC_TC_with_TRN_v1'] = network_architectures['basic_TC']
+    network_architectures['full_EI_CC_TC_with_TRN_v2'] = network_architectures['basic_TC']
 
     if 'exc_input_and_output' in hp and hp['exc_input_and_output']:
         for layer in ['sen_input', 'rule_input', 'output']:
@@ -189,8 +202,6 @@ def all_network_architectures(hp):
         elif hp['w_mask_type'] == 'basic_EI_TC_with_TRN':
 
             n_modules = 10
-            n_exc_units_module = int(int(hp['n_rnn'] / 5) * hp['exc_prop_RNN'])
-            n_inh_units_module = int(hp['n_rnn'] / 5) - n_exc_units_module
             pre = []
             post = []
             exc_prop = []
@@ -233,17 +244,9 @@ def all_network_architectures(hp):
             }
 
 
-        elif hp['w_mask_type'] == 'full_EI_CC_TC_with_TRN_v1':
+        elif hp['w_mask_type'] == 'full_EI_CC_TC_with_TRN_v2':
 
             n_modules = 20
-            n_exc_units_module = int(int(hp['n_rnn'] / 5) * hp['exc_prop_RNN'])
-            n_inh_units_module = int(hp['n_rnn'] / 5) - n_exc_units_module
-            if 'inh_prop_TRN' in hp:
-                n_TRN_units = int(int(hp['n_rnn'] / 5) * hp['inh_prop_TRN'])
-                n_exc_thal_units = int(hp['n_rnn'] / 5) - n_TRN_units
-            else:
-                n_TRN_units = n_inh_units_module
-                n_exc_thal_units = n_exc_units_module
 
             pre = []
             post = []
@@ -271,17 +274,17 @@ def all_network_architectures(hp):
                         pre.append(range(n_count, n_count + int(n_exc_units_module / 2)))
                         post_ranges = [range(n_count - n_inh_units_module - int(n_exc_units_module / 2), n_count + int(n_exc_units_module / 2))]
                         if module == 2:
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5), 4 * int(hp['n_rnn'] / 5) + n_inh_units_module))
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_inh_units_module, 4 * int(hp['n_rnn'] / 5) + n_inh_units_module + int(n_exc_units_module / 4)))
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5), 4 * int(hp['n_rnn'] / 5) + n_TRN_units))
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_TRN_units, 4 * int(hp['n_rnn'] / 5) + n_TRN_units + int(n_exc_thal_units / 4)))
                         elif module == 5:
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + int(n_inh_units_module / 4), 4 * int(hp['n_rnn'] / 5) + 2 * int(n_inh_units_module / 4)))
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_inh_units_module + int(n_exc_units_module / 4), 4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 2 * int(n_exc_units_module / 4)))
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + int(n_TRN_units / 4), 4 * int(hp['n_rnn'] / 5) + 2 * int(n_TRN_units / 4)))
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_TRN_units + int(n_exc_thal_units / 4), 4 * int(hp['n_rnn'] / 5) + n_TRN_units + 2 * int(n_exc_thal_units / 4)))
                         elif module == 8:
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + 2 * int(n_inh_units_module / 4), 4 * int(hp['n_rnn'] / 5) + 3 * int(n_inh_units_module / 4)))
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 2 * int(n_exc_units_module / 4), 4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 3 * int(n_exc_units_module / 4)))
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + 2 * int(n_TRN_units / 4), 4 * int(hp['n_rnn'] / 5) + 3 * int(n_TRN_units / 4)))
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_TRN_units + 2 * int(n_exc_thal_units / 4), 4 * int(hp['n_rnn'] / 5) + n_TRN_units + 3 * int(n_exc_thal_units / 4)))
                         elif module == 11:
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + 3 * int(n_inh_units_module / 4), 4 * int(hp['n_rnn'] / 5) + n_inh_units_module))
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_inh_units_module + 3 * int(n_exc_units_module / 4), 4 * int(hp['n_rnn'] / 5) + n_inh_units_module + n_exc_units_module))
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + 3 * int(n_TRN_units / 4), 4 * int(hp['n_rnn'] / 5) + n_TRN_units))
+                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_TRN_units + 3 * int(n_exc_thal_units / 4), 4 * int(hp['n_rnn'] / 5) + n_TRN_units + n_exc_thal_units))
                         post.append(np.concatenate(post_ranges))
                         exc_prop.append(1.)
                         n_count += int(n_exc_units_module / 2)
@@ -322,8 +325,8 @@ def all_network_architectures(hp):
             network_architectures[hp['w_mask_type']]['output'] = {
                 'n_modules': 1,
                 'pre': ['all'],
-                'post': [range(3 * int(hp['n_rnn'] / 5) + n_inh_units_module,
-                               3 * int(hp['n_rnn'] / 5) + n_inh_units_module + int(n_exc_units_module / 2))],
+                'post': [range(3 * int(hp['n_rnn'] / 5) + n_inh_units_module + int(n_exc_units_module / 2),
+                               4 * int(hp['n_rnn'] / 5))],
                 'rec': [False],
                 'EI_balance': [True],
                 'exc_prop': [1.]
