@@ -336,38 +336,48 @@ def plt_various_performances(trained_models,models_saving_dir='./saved_models',
                              average_rules=True, colors_to_use = 'tableau', show_legend=False, labels=None):
 
 
-    if colors_to_use == 'tableau':
-        colors = mcolors.TABLEAU_COLORS
-        by_hsv = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgb(color))),
-                         name)
-                        for name, color in colors.items())
-        rule_color_pairs = [name for hsv, name in by_hsv]
-    else:
-        rule_color_pairs = ['bright purple','green blue','indigo','grey blue','lavender','aqua']
+    if type(colors_to_use) == str:
+        if colors_to_use == 'tableau':
+            colors = mcolors.TABLEAU_COLORS
+            by_hsv = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgb(color))),
+                             name)
+                            for name, color in colors.items())
+            rule_color_pairs = [name for hsv, name in by_hsv]
+        #else:
+            #rule_color_pairs = ['bright purple','green blue','indigo','grey blue','lavender','aqua']
 
-    if len(trained_models) > len(rule_color_pairs):
-        for i in range(int(np.ceil(len(trained_models)/len(rule_color_pairs)))):
-            rule_color_pairs = rule_color_pairs + rule_color_pairs
+            if len(trained_models) > len(rule_color_pairs):
+                for i in range(int(np.ceil(len(trained_models)/len(rule_color_pairs)))):
+                    rule_color_pairs = rule_color_pairs + rule_color_pairs
+    else:
+        colors = mcolors.TABLEAU_COLORS
 
     fig_all = plt.figure(figsize=(15,6))
 
     custom_lines = []
 
     for i, trained_model in enumerate(trained_models):
-        if average_rules:
-            _rule_color = dict.fromkeys(['rule_average'])
+
+        if type(colors_to_use) == str:
+            if average_rules:
+                _rule_color = dict.fromkeys(['rule_average'])
+            else:
+                _rule_color = dict.fromkeys(rules)
+
+            for rule in _rule_color.keys():
+                _rule_color[rule] = rule_color_pairs.pop()
+
+            if colors_to_use  == 'tableau':
+                rule_color = {k: v for k, v in _rule_color.items()}
+            else:
+                rule_color = {k: 'xkcd:'+v for k, v in _rule_color.items()}
+
+            custom_lines.append(Line2D([0], [0], color=colors[rule_color[rule]], lw=2))
         else:
-            _rule_color = dict.fromkeys(rules)
+            rule_color = colors_to_use
 
-        for rule in _rule_color.keys():
-            _rule_color[rule] = rule_color_pairs.pop()
-
-        if colors_to_use  == 'tableau':
-            rule_color = {k: v for k, v in _rule_color.items()}
-        else:
-            rule_color = {k: 'xkcd:'+v for k, v in _rule_color.items()}
-
-        custom_lines.append(Line2D([0], [0], color=colors[rule_color[rule]], lw=2))
+            for rule in rules:
+                custom_lines.append(Line2D([0], [0], color=colors[rule_color[rule]], lw=2))
     
         if i == 0:
             fig = plt.figure(figsize=(15,6))
@@ -382,6 +392,7 @@ def plt_various_performances(trained_models,models_saving_dir='./saved_models',
 
         model_dir = join(models_saving_dir,trained_model)
         print(model_dir)
+        print(rule_color)
         #try:
         _, ax = plot_performanceprogress(model_dir, fig=fig_all , ax=ax, rule_color=rule_color,show_legend=False,label=label,rule_plot=rules,average_rules=average_rules)
         #except:
@@ -410,20 +421,6 @@ def relabel_cluster(cluster_object, cluster_pair):
     cluster_object.unique_labels = swap_indices(cluster_object.unique_labels, cluster_pair)
 
     return cluster_object
-
-
-
-def lesion_weights(weigth_matrix,perc_lesioned_weights,clustered_rnn_geometry): 
-    lin_weigth_matrix = np.abs(weigth_matrix.flatten())
-    lin_weigth_matrix = np.sort(lin_weigth_matrix)
-
-    lim_weights = lin_weigth_matrix[int(perc_lesioned_weights*len(lin_weigth_matrix))]
-
-    lesion_weights_list = np.array(np.where((weigth_matrix < lim_weights)*(weigth_matrix > -1*lim_weights))).T
-
-    perfs_changes, cost_changes = clustered_rnn_geometry.lesions(lesion_weights_list=lesion_weights_list)
-
-    return perfs_changes
 
 
 
@@ -486,7 +483,7 @@ def video_activations(dict_activations, fps, downsample=None,video_name='',zscor
 
 
 def get_all_unit_activations(model_dir, rule, params, average_activations=True, ommit_fix_unit=False, zscoring=False,
-                             pre_trial_rule='same_rule_same_mod', pre_params=None):
+                             pre_trial_rule='same_rule_same_mod', pre_params=None, lesion_dict = None):
     """
     Args:
         model_dir : model name
@@ -503,6 +500,13 @@ def get_all_unit_activations(model_dir, rule, params, average_activations=True, 
     hp = model.hp
     with tf.compat.v1.Session() as sess:
         model.restore()
+
+        if lesion_dict is not None:
+            if lesion_dict['lesion_type'] == 'units':
+                model.lesion_units(sess, lesion_dict['pre_units'])
+            elif lesion_dict['lesion_type'] == 'weights':
+                model.lesion_weights(sess, lesion_dict['pre_units'], lesion_dict['post_units'])
+
 
         trial = task.generate_trials(rule, hp, 'psychometric', params=params)
         h_init = None
@@ -687,7 +691,7 @@ def get_activations(model_dir, rule,
                     stim1_mod1=np.array([0]), stim2_mod1=np.array([0]),
                     stim1_mod2=np.array([0]), stim2_mod2=np.array([0]),
                     subsample_indexes=None, n_directions=2, pre_trial_rule='same_rule_same_mod',
-                    single_direction=None):
+                    single_direction=None, lesion_dict = None):
 
     if single_direction is None:
         params = get_sensory_stim_params(stim1_mod1, stim2_mod1, stim1_mod2, stim2_mod2, n_repats=n_directions,
@@ -702,7 +706,7 @@ def get_activations(model_dir, rule,
 
     print(params)
     dict_activations = get_all_unit_activations(model_dir, rule, params, average_activations=False,
-                                                pre_trial_rule=pre_trial_rule)
+                                                pre_trial_rule=pre_trial_rule, lesion_dict = lesion_dict)
 
     if subsample_indexes is not None:
         dict_activations = subsample_unit_activations(dict_activations, subsample_indexes, with_repeats=True)
@@ -751,19 +755,20 @@ def get_PC_projections(activity_neurons, unique_stim_locs, time_steps):
 def PCAs_single_rule_single_mod_all_sides(model_dir, rule, subnetworks,
                                           stim1_mod1=np.array([0]), stim2_mod1=np.array([0]),
                                           stim1_mod2=np.array([0]), stim2_mod2=np.array([0]),
-                                          n_directions=2, pre_trial_rule='same_rule_same_mod'):
+                                          n_directions=2, pre_trial_rule='same_rule_same_mod', lesion_dict = None):
     for i in range(len(subnetworks)):
         activity_neurons, unique_stim_locs, time_steps = get_activations(model_dir, rule,
                                                                          stim1_mod1=stim1_mod1,
                                                                          stim1_mod2=stim1_mod2,
                                                                          subsample_indexes=subnetworks[i]['index_range'],
-                                                                         n_directions=n_directions, pre_trial_rule=pre_trial_rule)
+                                                                         n_directions=n_directions, pre_trial_rule=pre_trial_rule,
+                                                                         lesion_dict=lesion_dict)
         subnetworks[i]['pc_projections'] = get_PC_projections(activity_neurons, unique_stim_locs, time_steps)
     return subnetworks
 
 
 def PCAs_all_rules_single_mods_single_side(model_dir, rules, subnetworks, direction=0, mod=0,
-                                           pre_trial_rule='same_rule_same_mod'):
+                                           pre_trial_rule='same_rule_same_mod', lesion_dict = None):
 
     if mod > 0:
         m = [[1, 0], [0, 1]][mod - 1]
@@ -785,7 +790,8 @@ def PCAs_all_rules_single_mods_single_side(model_dir, rules, subnetworks, direct
                                                                                        subsample_indexes=subnetworks[i]['index_range'],
                                                                                        n_directions=1,
                                                                                        pre_trial_rule=pre_trial_rule,
-                                                                                       single_direction=direction)
+                                                                                       single_direction=direction,
+                                                                                       lesion_dict=lesion_dict)
             if activity_neurons is None:
                 activity_neurons = temp_activity_neurons
             else:
@@ -797,7 +803,8 @@ def PCAs_all_rules_single_mods_single_side(model_dir, rules, subnetworks, direct
     return subnetworks
 
 
-def PCAs_single_rule_all_mods_single_side(model_dir, rule, subnetworks, direction=0, pre_trial_rule='same_rule_same_mod'):
+def PCAs_single_rule_all_mods_single_side(model_dir, rule, subnetworks, direction=0,
+                                          pre_trial_rule='same_rule_same_mod', lesion_dict = None):
     for i in range(len(subnetworks)):
         activity_neurons = None
         unique_stim_locs = 0
@@ -812,7 +819,8 @@ def PCAs_single_rule_all_mods_single_side(model_dir, rule, subnetworks, directio
                                                                                        subnetworks[i]['index_range'],
                                                                                        n_directions=1,
                                                                                        pre_trial_rule=pre_trial_rule,
-                                                                                       single_direction=direction)
+                                                                                       single_direction=direction,
+                                                                                       lesion_dict=lesion_dict)
             if activity_neurons is None:
                 activity_neurons = temp_activity_neurons
             else:
@@ -824,7 +832,8 @@ def PCAs_single_rule_all_mods_single_side(model_dir, rule, subnetworks, directio
     return subnetworks
 
 
-def PCAs_all_rules_all_mods_all_sides(model_dir, rules, subnetworks, n_directions=2, pre_trial_rule='same_rule_same_mod'):
+def PCAs_all_rules_all_mods_all_sides(model_dir, rules, subnetworks, n_directions=2,
+                                      pre_trial_rule='same_rule_same_mod', lesion_dict = None):
     for i in range(len(subnetworks)):
         activity_neurons = None
         unique_stim_locs = 0
@@ -839,7 +848,8 @@ def PCAs_all_rules_all_mods_all_sides(model_dir, rules, subnetworks, n_direction
                                                                                            subsample_indexes=
                                                                                            subnetworks[i]['index_range'],
                                                                                            n_directions=n_directions,
-                                                                                           pre_trial_rule=pre_trial_rule)
+                                                                                           pre_trial_rule=pre_trial_rule,
+                                                                                           lesion_dict=lesion_dict)
                 if activity_neurons is None:
                     activity_neurons = temp_activity_neurons
                 else:
@@ -1026,14 +1036,14 @@ def plot_unit_activations(activations, global_x_lims=[0, 0], global_y_lims=[0, 0
 def compare_unit_activations(list_activations, colors, subplot_shapes=None):
     given_subplots = None
     global_x_lims = [0, 0]
-    global_y_lims = [0, 0]
+    global_y_lims = [0, 1]
     for i in range(len(list_activations)):
         given_subplots, global_x_lims, global_y_lims = plot_unit_activations(list_activations[i], global_x_lims, global_y_lims,
                                                                              color=colors[i], given_subplots=given_subplots,
                                                                              subplot_shapes=subplot_shapes)
 
 
-def perf_pre_post_lesion(model_dir, rule, units_to_lesion, pre_trial_rule='same_rule_same_mod'):
+def perf_pre_post_lesion(model_dir, rule, units_to_lesion, pre_trial_rule='same_rule_same_mod', lesion_type='units', post_units=None):
 
     model = Model(model_dir)
     hp = model.hp
@@ -1047,7 +1057,7 @@ def perf_pre_post_lesion(model_dir, rule, units_to_lesion, pre_trial_rule='same_
                 pre_trial = trial
             elif pre_trial_rule == 'same_rule_rand_mod':
                 pre_trial = task.generate_trials(rule, hp, 'random', batch_size=1000)
-            elif pre_trial_rule == 'opp_rule_ran_mod':
+            elif pre_trial_rule == 'opp_rule_rand_mod':
                 pre_rule = rule[:-1] + str(int(rule[-1])%2+1)
                 pre_trial = task.generate_trials(pre_rule, hp, 'random', batch_size=1000)
             elif pre_trial_rule == 'opp_rule_same_mod':
@@ -1067,7 +1077,12 @@ def perf_pre_post_lesion(model_dir, rule, units_to_lesion, pre_trial_rule='same_
         perf_pre = get_perf(y_hat, trial.y_loc)
 
         if bool(units_to_lesion):
-            model.lesion_units(sess, units_to_lesion)
+            if lesion_type == 'units':
+                model.lesion_units(sess, units_to_lesion)
+            elif lesion_type == 'weights':
+                model.lesion_weights(sess, units_to_lesion, post_units)
+        else:
+            print('NO LESION MADE!')
 
         y_hat = sess.run(model.y_hat, feed_dict=feed_dict)
         perf_post = get_perf(y_hat, trial.y_loc)

@@ -1413,3 +1413,39 @@ class Model(object):
         if verbose:
             print('Lesioned units:')
             print(units)
+
+    def lesion_weights(self, sess, pre_units, post_units):
+        """Lesion units given by units
+
+        Args:
+            sess: tensorflow session
+            units : can be None, an integer index, or a list of integer indices
+        """
+
+        # Convert to numpy array
+        if pre_units is None:
+            return
+        elif not hasattr(pre_units, '__iter__'):
+            pre_units = np.array([pre_units])
+        else:
+            pre_units = np.array(pre_units)
+
+        if post_units is None:
+            return
+        elif not hasattr(post_units, '__iter__'):
+            post_units = np.array([post_units])
+        else:
+            post_units = np.array(post_units)
+
+        # This lesioning will work for both RNN and GRU
+        n_input = self.hp['n_input']
+        for v in self.var_list:
+            if 'kernel' in v.name or 'weight' in v.name:
+                # Connection weights
+                v_val = sess.run(v)
+                if 'rnn' in v.name:
+                    # recurrent weights
+                    for i in pre_units:
+                        v_val[n_input + i, post_units] = 0
+                sess.run(v.assign(v_val))
+
