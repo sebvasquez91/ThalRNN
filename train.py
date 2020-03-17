@@ -694,7 +694,7 @@ def train_rule_only(
         print("Optimization Finished!")
 
 
-def continue_training(reload_model, performance_reached=False, interrupt=False, h_init=None):
+def continue_training(reload_model, performance_reached=False, interrupt=False, h_init=None, new_learning_rate=None):
     while performance_reached is False and interrupt is False:
         load_model_name = sorted([basename(folder[0]) for folder in walk(saving_path) if basename(folder[0]).startswith(reload_model)])[-1]
 
@@ -706,6 +706,9 @@ def continue_training(reload_model, performance_reached=False, interrupt=False, 
         load_dir = join(saving_path, load_model_name)
         hp = tools.load_hp(load_dir)
         seed = hp['seed']
+
+        if new_learning_rate is not None:
+            hp['learning_rate'] = new_learning_rate
 
         performance_reached, interrupt, h_init = train(model_dir,
                                                        load_dir=load_dir,
@@ -746,7 +749,7 @@ if __name__ == '__main__':
     saving_path = './saved_models'
 
     seed_range = range(0, 10) #(0, 10)
-    hp = {'learning_rate': 0.001, 'n_rnn': 100, 'target_perf': 0.95,
+    hp = {'learning_rate': 0.01, 'n_rnn': 100, 'target_perf': 0.95,
           'use_separate_input': False, 'activation': 'retanh',
           'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False,
           'exc_input_and_output': True, 'exc_inh_RNN': True, 'exc_prop_RNN': 0.8,
@@ -768,6 +771,8 @@ if __name__ == '__main__':
 
     #reload_model = 'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_1'
     reload_model = None
+
+    new_learning_rate = None
 
     if reload_model is None:
         for hp, name in zip(hp_list, names_list):
@@ -795,8 +800,8 @@ if __name__ == '__main__':
                         except:
                             print('File copying to Dropbox failed.')
 
-                continue_training(basename(model_dir), performance_reached, interrupt, h_init)
+                continue_training(basename(model_dir), performance_reached, interrupt, h_init, new_learning_rate=new_learning_rate)
     else:
-        continue_training(reload_model)
+        continue_training(reload_model, new_learning_rate=new_learning_rate)
 
 
