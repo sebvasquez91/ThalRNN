@@ -256,7 +256,7 @@ def get_learnt_weights(model_dir, hp):
             return w_rec, w_in, w_out, b_rec, b_out, w_masks_all
 
 
-def plot_performanceprogress(model_dir, rule_color, ax=None, fig=None, rule_plot=None, label=None, show_legend=False,
+def plot_performanceprogress(model_dir, rule_color, axes=None, fig=None, rule_plot=None, label=None, show_legend=False,
                              average_rules=True, plot_type='perf'):
     # Plot Training Progress
     model_parts = sorted([folder[0] for folder in walk(dirname(abspath(model_dir))) if basename(folder[0]).startswith(basename(model_dir))])
@@ -283,11 +283,11 @@ def plot_performanceprogress(model_dir, rule_color, ax=None, fig=None, rule_plot
 
     fs = 14 # fontsize
     
-    if not fig:
-        fig = plt.figure(figsize=(15,6))
-        
-    if not ax:
-        ax = fig.add_axes([0.1,0.25,0.35,0.6])
+    if fig is None:
+        fig = [plt.figure(figsize=(15,6)),plt.figure(figsize=(15,6))]
+
+    if axes is None:
+        axes = [fig[0].add_axes([0.1,0.25,0.35,0.6]),  fig[1].add_axes([0.1, 0.25, 0.35, 0.6])]
         
     lines = list()
     labels = list()
@@ -296,38 +296,47 @@ def plot_performanceprogress(model_dir, rule_color, ax=None, fig=None, rule_plot
     if rule_plot == None:
         rule_plot = hp['rules']
 
-    for i, rule in enumerate(rule_plot):
-        # line = ax1.plot(x_plot, np.log10(cost_tests[rule]),color=color_rules[i%26])
-        # ax2.plot(x_plot, perf_tests[rule],color=color_rules[i%26])
-        if plot_type == 'perf':
-            line = ax.plot(x_plot, log['perf_' + rule], color=rule_color[rule])
-        else:
-            line = ax.plot(x_plot, np.log10(log['cost_'+rule]), color=rule_color[rule])
-        lines.append(line[0])
-        if label:
-            labels.append(label)
-        else:
-            if average_rules:
-                labels.append('Rule averages')
+    for j, plot_type in enumerate(['perf_', 'cost_']):
+
+        ax = axes[j]
+
+        for i, rule in enumerate(rule_plot):
+            # line = ax1.plot(x_plot, np.log10(cost_tests[rule]),color=color_rules[i%26])
+            # ax2.plot(x_plot, perf_tests[rule],color=color_rules[i%26])
+            if plot_type == 'perf_':
+                line = ax.plot(x_plot, log['perf_' + rule], color=rule_color[rule])
             else:
-                labels.append(rule_name[rule])
+                line = ax.plot(x_plot, np.log10(log['cost_'+rule]), color=rule_color[rule])
+            lines.append(line[0])
+            if label:
+                labels.append(label)
+            else:
+                if average_rules:
+                    labels.append('Rule averages')
+                else:
+                    labels.append(rule_name[rule])
 
-    ax.tick_params(axis='both', which='major', labelsize=fs)
+        ax.tick_params(axis='both', which='major', labelsize=fs)
 
-    ax.set_ylim([0, 1])
-    ax.set_xlabel('Total trials (x$10^3$)',fontsize=fs, labelpad=2)
-    ax.set_ylabel('Performance',fontsize=fs, labelpad=0)
-    ax.locator_params(axis='x', nbins=3)
-    ax.set_yticks([0,1])
-    ax.spines["right"].set_visible(False)
-    ax.spines["top"].set_visible(False)
-    ax.xaxis.set_ticks_position('bottom')
-    ax.yaxis.set_ticks_position('left')
-    if show_legend:
-        lg = fig.legend(lines, labels, title='$\lambda$ = 0',ncol=2,bbox_to_anchor=(0.15,0.22),fontsize=fs,labelspacing=0.3,loc=6,frameon=False)
-        plt.setp(lg.get_title(),fontsize=fs)
-    #plt.savefig('figure/Performance_Progresss.pdf', transparent=True)
-    return fig, ax
+        if plot_type == 'perf_':
+            ax.set_ylabel('Performance', fontsize=fs, labelpad=0)
+            ax.set_ylim([0, 1])
+            ax.set_yticks([0, 1])
+        elif plot_type == 'cost_':
+            ax.set_ylabel('Log cost', fontsize=fs, labelpad=0)
+
+        ax.set_xlabel('Total trials (x$10^3$)',fontsize=fs, labelpad=2)
+        ax.locator_params(axis='x', nbins=3)
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        ax.xaxis.set_ticks_position('bottom')
+        ax.yaxis.set_ticks_position('left')
+        if show_legend:
+            lg = fig[j].legend(lines, labels, title='$\lambda$ = 0',ncol=2,bbox_to_anchor=(0.15,0.22),fontsize=fs,labelspacing=0.3,loc=6,frameon=False)
+            plt.setp(lg.get_title(),fontsize=fs)
+        #plt.savefig('figure/Performance_Progresss.pdf', transparent=True)
+
+    return fig, axes
     
 
 
@@ -352,7 +361,8 @@ def plt_various_performances(trained_models,models_saving_dir='./saved_models',
     else:
         colors = mcolors.TABLEAU_COLORS
 
-    fig_all = plt.figure(figsize=(15,6))
+    fig_all = [plt.figure(figsize=(15,6)),plt.figure(figsize=(15,6))]
+    ax = None
 
     custom_lines = []
 
@@ -379,11 +389,11 @@ def plt_various_performances(trained_models,models_saving_dir='./saved_models',
             for rule in rules:
                 custom_lines.append(Line2D([0], [0], color=colors[rule_color[rule]], lw=2))
     
-        if i == 0:
-            fig = plt.figure(figsize=(15,6))
-            ax = None
-        else:
-            fig = None
+        # if i == 0:
+        #     fig = [plt.figure(figsize=(15,6)), plt.figure(figsize=(15,6))]
+        #     ax = None
+        # else:
+        #     fig = None
 
         if labels is None:
             label = ''
@@ -392,16 +402,18 @@ def plt_various_performances(trained_models,models_saving_dir='./saved_models',
 
         model_dir = join(models_saving_dir,trained_model)
         print(model_dir)
-        print(rule_color)
+
         #try:
-        _, ax = plot_performanceprogress(model_dir, fig=fig_all , ax=ax, rule_color=rule_color,show_legend=False,label=label,rule_plot=rules,average_rules=average_rules)
+        _, ax = plot_performanceprogress(model_dir, fig=fig_all , axes=ax, rule_color=rule_color, show_legend=False, label=label, rule_plot=rules, average_rules=average_rules)
         #except:
             #continue
 
-    ax.plot([0,ax.get_xlim()[1]],[0.95,0.95],'k',linestyle=':')
-    #ax.set_xlim([0,ax.get_xlim()[1]])
-    if show_legend and labels:
-        ax.legend(custom_lines, labels, loc='center left', bbox_to_anchor=(1, 0.5),fontsize=12,labelspacing=0.3,frameon=False)
+    ax[0].plot([0,ax[0].get_xlim()[1]],[0.95,0.95],'k',linestyle=':')
+    #ax[0].set_xlim([0,ax.get_xlim()[1]])
+
+    for j in range(2):
+        if show_legend and labels:
+            ax[j].legend(custom_lines, labels, loc='center left', bbox_to_anchor=(1, 0.5), fontsize=12, labelspacing=0.3, frameon=False)
 
     plt.show()
 

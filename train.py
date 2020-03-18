@@ -368,8 +368,10 @@ def train(model_dir,
                         display_rich_output(model, sess, step, log, model_dir)
 
                     if dynamic_rule_prob:
-                        hp['rule_probs'] = [1-log['perf_' + rule][-1] for rule in hp['rule_trains']]
+                        hp['rule_probs'] = [log['cost_' + rule][-1] for rule in hp['rule_trains']]
                         hp['rule_probs'] = [p/sum(hp['rule_probs']) for p in hp['rule_probs']]
+                        # hp['rule_probs'] = [1-log['perf_' + rule][-1] for rule in hp['rule_trains']]
+                        # hp['rule_probs'] = [p/sum(hp['rule_probs']) for p in hp['rule_probs']]
 
                 # Training
                 rule_train_now = hp['rng'].choice(hp['rule_trains'],
@@ -749,7 +751,7 @@ if __name__ == '__main__':
     saving_path = './saved_models'
 
     seed_range = range(0, 10) #(0, 10)
-    hp = {'learning_rate': 0.01, 'n_rnn': 100, 'target_perf': 0.95,
+    hp = {'learning_rate': 0.0005, 'n_rnn': 100, 'target_perf': 0.95,
           'use_separate_input': False, 'activation': 'retanh',
           'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False,
           'exc_input_and_output': True, 'exc_inh_RNN': True, 'exc_prop_RNN': 0.8,
