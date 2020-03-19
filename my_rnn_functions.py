@@ -156,7 +156,7 @@ def subnetwork_indx(subset, n_rnn=120, n_modules=5, thalamus_prop=1/3, prop_exc=
                       n_cortical_units + 4 * n_TRN_module_units
 
     elif subset == 'Thal':
-        indx1, idx2 = start_exc_thal, 5 * n_thalamic_units
+        indx1, idx2 = start_exc_thal, n_rnn
     elif subset == 'Thal_MD':
         indx1, idx2 = start_exc_thal + 0 * n_thal_module_units, \
                       start_exc_thal + 1 * n_thal_module_units
@@ -165,7 +165,7 @@ def subnetwork_indx(subset, n_rnn=120, n_modules=5, thalamus_prop=1/3, prop_exc=
                       start_exc_thal + 2 * n_thal_module_units
     elif subset == 'Thal_Mod1_FO':
         if FO_inputs_1_to_1:
-            return [start_exc_thal + int(np.floor(i / n_each_ring)) * n_thal_module_units + (i % n_each_ring) for i in range(n_each_ring)]
+            return [start_exc_thal + int(1 + np.floor(i / n_each_ring)) * n_thal_module_units + (i % n_each_ring) for i in range(n_each_ring)]
         else:
             indx1, idx2 = start_exc_thal + 1 * n_thal_module_units, \
                           start_exc_thal + 1 * n_thal_module_units + n_FO_thal_units
@@ -177,7 +177,7 @@ def subnetwork_indx(subset, n_rnn=120, n_modules=5, thalamus_prop=1/3, prop_exc=
                       start_exc_thal + 3 * n_thal_module_units
     elif subset == 'Thal_Mod2_FO':
         if FO_inputs_1_to_1:
-            return [start_exc_thal + int(np.floor(i / n_each_ring)) * n_thal_module_units + (i % n_each_ring) for i in range(n_each_ring, 2*n_each_ring)]
+            return [start_exc_thal + int(1 + np.floor(i / n_each_ring)) * n_thal_module_units + (i % n_each_ring) for i in range(n_each_ring, 2*n_each_ring)]
         else:
             indx1, idx2 = start_exc_thal + 2 * n_thal_module_units, \
                           start_exc_thal + 2 * n_thal_module_units + n_FO_thal_units
@@ -1075,7 +1075,8 @@ def plot_unit_activations(activations, global_x_lims=[0, 0], global_y_lims=[0, 0
     # print(global_y_lims)
     for i in range(len(subplots)):
         subplots[i].set_xlim(global_x_lims)
-        subplots[i].set_ylim(global_y_lims)
+        #subplots[i].set_ylim(global_y_lims)
+        subplots[i].set_ylim([-0.05, 1.05])
         if i < (side1-1)*side2:
             subplots[i].axes.get_xaxis().set_visible(False)
         if i%side2:

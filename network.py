@@ -214,6 +214,7 @@ def all_network_architectures(hp):
     network_architectures['basic_TC_exc_in_out'] = network_architectures['basic_TC']
     network_architectures['EI_basic_TC_exc_in'] = network_architectures['basic_TC']
     network_architectures['basic_EI_TC_with_TRN'] = network_architectures['basic_TC']
+    network_architectures['full_EI_CC_TC_with_TRN_v2'] = network_architectures['basic_TC']
     network_architectures['full_EI_CC_TC_with_TRN_v3'] = network_architectures['basic_TC']
 
     if 'exc_input_and_output' in hp and hp['exc_input_and_output']:
@@ -276,7 +277,7 @@ def all_network_architectures(hp):
             }
 
 
-        elif hp['w_mask_type'] == 'full_EI_CC_TC_with_TRN_v3':
+        elif 'full_EI_CC_TC_with_TRN' in hp['w_mask_type']:
 
             n_modules = 20
 
@@ -345,7 +346,7 @@ def all_network_architectures(hp):
                     network_architectures[hp['w_mask_type']]['sen_input'] = {
                     'n_modules': n_inputs,
                     'pre': [[i] for i in range(n_inputs)],
-                    'post': [start_exc_thal + int(np.floor((i-1) / hp['n_eachring'])) * n_thal_module_units + ((i-1) % hp['n_eachring']) if i > 0 else range(0, n_ctx_module_units) for i in range(n_inputs)],
+                    'post': [start_exc_thal + int(1 + np.floor((i-1) / hp['n_eachring'])) * n_thal_module_units + ((i-1) % hp['n_eachring']) if i > 0 else range(0, n_ctx_module_units) for i in range(n_inputs)],
                     'rec': [False for i in range(n_inputs)],
                     'EI_balance': [False for i in range(n_inputs)],
                     'exc_prop': [None for i in range(n_inputs)]
