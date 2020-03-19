@@ -88,7 +88,7 @@ def get_default_hp(ruleset):
             # number of output units
             'n_output': n_output,
             # number of recurrent units
-            'n_rnn': 100,
+            'n_rnn': 120,
             # number of input units
             'ruleset': ruleset,
             # name to save
@@ -106,12 +106,18 @@ def get_default_hp(ruleset):
             'random_connectivity': False,
             # make all weights from/to the input/output layers excitatory
             'exc_input_and_output': True,
+            # proportion of RNN units in the thalamic module (both exc and inh)
+            'thalamus_prop': 1/3,
             # make hidden units to be either excitatory or inhibitory
             'exc_inh_RNN': True,
             # proportion of excitatory RNN units, set to 1 to make all units excitatory, or 0 to make all units inhibitory
             'exc_prop_RNN': 0.8,
             # proportion of inhibitory thalamic units (TRN), set to 0 to make all units excitatory (no TRN)
             'inh_prop_TRN': 0.4,
+            # proportion of sensory modality thalamic units that receive connections from input units
+            'FO_thal_prop': 1/3,
+            # will individual sensory inputs go to single thalamic neurons? (makes n_FO_thal_units = n_eachring)
+            'FO_inputs_1_to_1': True,
             # transfer hidden states across trials
             'transfer_h_across_trials': False}
 
@@ -751,19 +757,19 @@ if __name__ == '__main__':
     saving_path = './saved_models'
 
     seed_range = range(0, 10) #(0, 10)
-    hp = {'learning_rate': 0.0005, 'n_rnn': 100, 'target_perf': 0.95,
+    hp = {'learning_rate': 0.0005, 'n_rnn': 120, 'target_perf': 0.95,
           'use_separate_input': False, 'activation': 'retanh',
           'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': False,
           'exc_input_and_output': True, 'exc_inh_RNN': True, 'exc_prop_RNN': 0.8,
           'transfer_h_across_trials': True}
-    hp_list = [{**hp, 'n_rnn': 100, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v2', 'random_connectivity': False, 'transfer_h_across_trials': True},
-               {**hp, 'n_rnn': 100, 'use_w_mask': True, 'w_mask_type': 'single_module_TC_with_TRN_v2', 'random_connectivity': False, 'transfer_h_across_trials': True},
+    hp_list = [{**hp, 'n_rnn': 120, 'use_w_mask': True, 'w_mask_type': 'full_EI_CC_TC_with_TRN_v3', 'random_connectivity': False, 'transfer_h_across_trials': True},
+               {**hp, 'n_rnn': 120, 'use_w_mask': True, 'w_mask_type': 'single_module_TC_with_TRN_v2', 'random_connectivity': False, 'transfer_h_across_trials': True},
                #{**hp, 'n_rnn': 100, 'use_w_mask': False, 'w_mask_type': None, 'exc_inh_RNN': False, 'exc_input_and_output': True, 'transfer_h_across_trials': True},
                #{**hp, 'use_w_mask': True, 'w_mask_type': 'basic_EI_TC_with_TRN', 'random_connectivity': True},
                #{**hp, 'use_w_mask': False, 'w_mask_type': None}
                ]
     names_list = [
-        'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v2_seed_',
+        'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v3_seed_',
         'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v2_seed_',
         #'vanilla_RNN_shared_h_contextdelaydm_MD_task_retanh_seed_',
         #'full_EI_CC_TC_with_TRN_shared_h_contextdelaydm_MD_task_retanh_seed_',

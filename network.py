@@ -95,42 +95,74 @@ def get_perf(y_hat, y_loc):
 
 
 def all_network_architectures(hp):
-    n_exc_units_module = int(int(hp['n_rnn'] / 5) * hp['exc_prop_RNN'])
-    n_inh_units_module = int(hp['n_rnn'] / 5) - n_exc_units_module
-    if 'inh_prop_TRN' in hp:
-        n_TRN_units = int(int(hp['n_rnn'] / 5) * hp['inh_prop_TRN'])
-        n_exc_thal_units = int(hp['n_rnn'] / 5) - n_TRN_units
+    if 'thalamus_prop' in hp:
+        n_thalamic_units = int(hp['n_rnn'] * hp['thalamus_prop'])
     else:
-        n_TRN_units = n_inh_units_module
-        n_exc_thal_units = n_exc_units_module
+        n_thalamic_units = int(hp['n_rnn'] / 5)
+
+    n_cortical_units = hp['n_rnn'] - n_thalamic_units
+    n_ctx_module_units = int(n_cortical_units / 4)
+    n_ctx_module_exc_units = int(n_ctx_module_units * hp['exc_prop_RNN'])
+    n_ctx_module_inh_units = n_ctx_module_units - n_ctx_module_exc_units
+
+    if 'inh_prop_TRN' in hp:
+        n_TRN_units = int(n_thalamic_units * hp['inh_prop_TRN'])
+        n_exc_thal_units = n_thalamic_units - n_TRN_units
+    else:
+        n_TRN_units = n_ctx_module_inh_units
+        n_exc_thal_units = n_ctx_module_exc_units
+        
+    n_TRN_module_units = int(n_TRN_units / 4)
+    n_thal_module_units = int(n_exc_thal_units / 4)
+
+    if 'FO_inputs_1_to_1' in hp and hp['FO_inputs_1_to_1']:
+        n_FO_thal_units = 2 * hp['n_eachring']
+    else:
+        if 'FO_thal_prop' in hp:
+            n_FO_thal_units = int(hp['FO_thal_prop'] * n_thal_module_units)
+        else:
+            n_FO_thal_units = n_thal_module_units
+
+    if 'single_module_TC_with_TRN' not in hp['w_mask_type']:
+        print(
+            '\n n_cortical_units: {}, n_ctx_module_units: {}, n_ctx_module_exc_units: {}, n_ctx_module_inh_units: {}, \n n_thalamic_units: {}, n_TRN_units: {}, n_exc_thal_units: {}, n_FO_thal_units: {} \n '.format(
+                n_cortical_units,
+                n_ctx_module_units,
+                n_ctx_module_exc_units,
+                n_ctx_module_inh_units,
+                n_thalamic_units,
+                n_TRN_units,
+                n_exc_thal_units,
+                n_FO_thal_units))
+
 
     network_architectures = {
         'basic_TC': { # multiple cortical modules
             'sen_input': {
                 'n_modules': 3,
                 'pre': [range(1 + i * hp['n_eachring'], 1 + (i+1) * hp['n_eachring']) if i >= 0 else [0] for i in range(-1,2)],
-                'post': [range(i * int(hp['n_rnn'] / 5), (i+1) * int(hp['n_rnn'] / 5)) for i in range(3)],
+                'post': [range(i * n_ctx_module_units, (i+1) * n_ctx_module_units) for i in range(3)],
                 'rec': [False for i in range(3)],
                 'EI_balance': [False for i in range(3)],
                 'exc_prop': [None for i in range(3)]},
             'rule_input': {
                 'n_modules': 1,
                 'pre': ['all'],
-                'post': [range(0, int(hp['n_rnn']/5))],
+                'post': [range(0, n_ctx_module_units)],
                 'rec': [False],
                 'EI_balance': [False],
                 'exc_prop': [None]},
             'rnn': {
                 'n_modules': 5,
-                'pre': [range(i * int(hp['n_rnn'] / 5), (i+1) * int(hp['n_rnn'] / 5)) if i < 4 else range(4 * int(hp['n_rnn'] / 5), hp['n_rnn']) for i in range(5)],
-                'post': [range(4 * int(hp['n_rnn'] / 5), hp['n_rnn']) if i < 4 else range(0, 4 * int(hp['n_rnn'] / 5)) for i in range(5)],
+                'pre': [range(i * n_ctx_module_units, (i+1) * n_ctx_module_units) if i < 4 else range(n_cortical_units, hp['n_rnn']) for i in range(5)],
+                'post': [range(n_cortical_units, hp['n_rnn']) if i < 4 else range(0, n_cortical_units) for i in range(5)],
                 'rec': [True if i < 4 else False for i in range(5)],
                 'EI_balance': [False for i in range(5)],
                 'exc_prop': [None for i in range(5)]},
             'output': {
                 'n_modules': 1,
                 'pre': ['all'],
-                'post': [range(3 * int(hp['n_rnn'] / 5), 4 * int(hp['n_rnn'] / 5))],
+                'post': [range(3 * n_ctx_module_units, n_cortical_units)],
                 'rec': [False],
                 'EI_balance': [False],
                 'exc_prop': [None]}
@@ -182,7 +214,7 @@ def all_network_architectures(hp):
     network_architectures['basic_TC_exc_in_out'] = network_architectures['basic_TC']
     network_architectures['EI_basic_TC_exc_in'] = network_architectures['basic_TC']
     network_architectures['basic_EI_TC_with_TRN'] = network_architectures['basic_TC']
-    network_architectures['full_EI_CC_TC_with_TRN_v2'] = network_architectures['basic_TC']
+    network_architectures['full_EI_CC_TC_with_TRN_v3'] = network_architectures['basic_TC']
 
     if 'exc_input_and_output' in hp and hp['exc_input_and_output']:
         for layer in ['sen_input', 'rule_input', 'output']:
@@ -210,20 +242,20 @@ def all_network_architectures(hp):
             for module in range(n_modules):
                 if module < 9:
                     if module % 2 == 0:
-                        pre.append(range(n_count, n_count+n_inh_units_module))
-                        post.append(range(n_count+n_inh_units_module, n_count+n_inh_units_module+n_exc_units_module))
+                        pre.append(range(n_count, n_count+n_ctx_module_inh_units))
+                        post.append(range(n_count+n_ctx_module_inh_units, n_count+n_ctx_module_inh_units+n_ctx_module_exc_units))
                         exc_prop.append(0.)
-                        n_count += n_inh_units_module
+                        n_count += n_ctx_module_inh_units
                     else:
-                        pre.append(range(n_count, n_count + n_exc_units_module))
-                        post.append(np.concatenate([range(n_count-n_inh_units_module, n_count), range(4 * int(hp['n_rnn'] / 5), hp['n_rnn'])]))
+                        pre.append(range(n_count, n_count + n_ctx_module_exc_units))
+                        post.append(np.concatenate([range(n_count-n_ctx_module_inh_units, n_count), range(n_cortical_units, hp['n_rnn'])]))
                         exc_prop.append(1.)
-                        n_count += n_exc_units_module
+                        n_count += n_ctx_module_exc_units
                 elif module == 9:
-                    pre.append(range(n_count, n_count + n_exc_units_module))
+                    pre.append(range(n_count, n_count + n_ctx_module_exc_units))
                     post.append(range(0, n_count))
                     exc_prop.append(1.)
-                    n_count += n_exc_units_module
+                    n_count += n_ctx_module_exc_units
 
             network_architectures[hp['w_mask_type']]['rnn'] = {
                 'n_modules': n_modules,
@@ -237,14 +269,14 @@ def all_network_architectures(hp):
             network_architectures[hp['w_mask_type']]['output'] = {
                 'n_modules': 1,
                 'pre': ['all'],
-                'post': [range(3 * int(hp['n_rnn'] / 5) + n_inh_units_module, 4 * int(hp['n_rnn'] / 5))],
+                'post': [range(3 * n_ctx_module_units + n_ctx_module_inh_units, n_cortical_units)],
                 'rec': [False],
                 'EI_balance': [True],
                 'exc_prop': [1.]
             }
 
 
-        elif hp['w_mask_type'] == 'full_EI_CC_TC_with_TRN_v2':
+        elif hp['w_mask_type'] == 'full_EI_CC_TC_with_TRN_v3':
 
             n_modules = 20
 
@@ -254,64 +286,78 @@ def all_network_architectures(hp):
 
             n_count = 0
             for module in range(n_modules):
+                #print(n_count)
                 if module < 12:
                     if module % 3 == 0:
-                        pre.append(range(n_count, n_count + n_inh_units_module))
-                        post.append(range(n_count+n_inh_units_module, n_count+n_inh_units_module+n_exc_units_module))
+                        pre.append(range(n_count, n_count + n_ctx_module_inh_units))
+                        post.append(range(n_count+n_ctx_module_inh_units, n_count+n_ctx_module_inh_units+n_ctx_module_exc_units))
                         exc_prop.append(0.)
-                        n_count += n_inh_units_module
+                        n_count += n_ctx_module_inh_units
                     elif module % 3 == 1:
-                        pre.append(range(n_count, n_count + int(n_exc_units_module/2)))
-                        post_ranges = [range(n_count - n_inh_units_module, n_count+n_exc_units_module)]
+                        pre.append(range(n_count, n_count + int(n_ctx_module_exc_units/2)))
+                        post_ranges = [range(n_count - n_ctx_module_inh_units, n_count+n_ctx_module_exc_units)]
                         if module == 1:
-                            post_ranges.append(range(int(hp['n_rnn'] / 5), 4 * int(hp['n_rnn'] / 5)))
+                            post_ranges.append(range(n_ctx_module_units, n_cortical_units))
                         elif module == 4 or module == 7:
-                            post_ranges.append(range(0, int(hp['n_rnn'] / 5)))
+                            post_ranges.append(range(0, n_ctx_module_units))
                         post.append(np.concatenate(post_ranges))
                         exc_prop.append(1.)
-                        n_count += int(n_exc_units_module/2)
+                        n_count += int(n_ctx_module_exc_units/2)
                     elif module % 3 == 2:
-                        pre.append(range(n_count, n_count + int(n_exc_units_module / 2)))
-                        post_ranges = [range(n_count - n_inh_units_module - int(n_exc_units_module / 2), n_count + int(n_exc_units_module / 2))]
+                        pre.append(range(n_count, n_count + int(n_ctx_module_exc_units / 2)))
+                        post_ranges = [range(n_count - n_ctx_module_inh_units - int(n_ctx_module_exc_units / 2), n_count + int(n_ctx_module_exc_units / 2))]
                         if module == 2:
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5), 4 * int(hp['n_rnn'] / 5) + n_TRN_units))
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_TRN_units, 4 * int(hp['n_rnn'] / 5) + n_TRN_units + int(n_exc_thal_units / 4)))
+                            post_ranges.append(range(n_cortical_units, n_cortical_units + n_TRN_units))
+                            post_ranges.append(range(n_cortical_units + n_TRN_units, n_cortical_units + n_TRN_units + n_thal_module_units))
                         elif module == 5:
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + int(n_TRN_units / 4), 4 * int(hp['n_rnn'] / 5) + 2 * int(n_TRN_units / 4)))
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_TRN_units + int(n_exc_thal_units / 4), 4 * int(hp['n_rnn'] / 5) + n_TRN_units + 2 * int(n_exc_thal_units / 4)))
+                            post_ranges.append(range(n_cortical_units + n_TRN_module_units, n_cortical_units + 2 * n_TRN_module_units))
+                            post_ranges.append(range(n_cortical_units + n_TRN_units + n_thal_module_units, n_cortical_units + n_TRN_units + 2 * n_thal_module_units))
                         elif module == 8:
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + 2 * int(n_TRN_units / 4), 4 * int(hp['n_rnn'] / 5) + 3 * int(n_TRN_units / 4)))
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_TRN_units + 2 * int(n_exc_thal_units / 4), 4 * int(hp['n_rnn'] / 5) + n_TRN_units + 3 * int(n_exc_thal_units / 4)))
+                            post_ranges.append(range(n_cortical_units + 2 * n_TRN_module_units, n_cortical_units + 3 * n_TRN_module_units))
+                            post_ranges.append(range(n_cortical_units + n_TRN_units + 2 * n_thal_module_units, n_cortical_units + n_TRN_units + 3 * n_thal_module_units))
                         elif module == 11:
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + 3 * int(n_TRN_units / 4), 4 * int(hp['n_rnn'] / 5) + n_TRN_units))
-                            post_ranges.append(range(4 * int(hp['n_rnn'] / 5) + n_TRN_units + 3 * int(n_exc_thal_units / 4), 4 * int(hp['n_rnn'] / 5) + n_TRN_units + n_exc_thal_units))
+                            post_ranges.append(range(n_cortical_units + 3 * n_TRN_module_units, n_cortical_units + n_TRN_units))
+                            post_ranges.append(range(n_cortical_units + n_TRN_units + 3 * n_thal_module_units, n_cortical_units + n_TRN_units + n_exc_thal_units))
                         post.append(np.concatenate(post_ranges))
                         exc_prop.append(1.)
-                        n_count += int(n_exc_units_module / 2)
+                        n_count += int(n_ctx_module_exc_units / 2)
 
                 elif module >= 12 and module < 16:
-                    pre.append(range(n_count, n_count + int(n_TRN_units / 4)))
-                    post_range_start = 4 * int(hp['n_rnn'] / 5) + n_TRN_units + (module % 12) * int(n_exc_thal_units / 4)
-                    post_range_end = post_range_start + int(n_exc_thal_units / 4)
+                    pre.append(range(n_count, n_count + n_TRN_module_units))
+                    post_range_start = n_cortical_units + n_TRN_units + (module % 12) * n_thal_module_units
+                    post_range_end = post_range_start + n_thal_module_units
                     post.append(range(post_range_start,post_range_end))
                     exc_prop.append(0.)
-                    n_count += int(n_TRN_units / 4)
+                    n_count += n_TRN_module_units
                 elif module >= 16:
-                    pre.append(range(n_count, n_count + int(n_exc_thal_units / 4)))
-                    post_range_start1 = (module % 16) * int(hp['n_rnn'] / 5)
-                    post_range_end1 = post_range_start1 + int(hp['n_rnn'] / 5)
-                    post_range_start2 = 4 * int(hp['n_rnn'] / 5) + (module % 16) * int(n_TRN_units / 4)
-                    post_range_end2 = post_range_start2 + int(n_TRN_units / 4)
+                    pre.append(range(n_count, n_count + n_thal_module_units))
+                    post_range_start1 = (module % 16) * n_ctx_module_units
+                    post_range_end1 = post_range_start1 + n_ctx_module_units
+                    post_range_start2 = n_cortical_units + (module % 16) * n_TRN_module_units
+                    post_range_end2 = post_range_start2 + n_TRN_module_units
                     post.append(np.concatenate([range(post_range_start1,post_range_end1), range(post_range_start2, post_range_end2)]))
                     exc_prop.append(1.)
-                    n_count += int(n_exc_thal_units / 4)
+                    n_count += n_thal_module_units
 
-            network_architectures[hp['w_mask_type']]['sen_input']['post'] = [range(0, int(hp['n_rnn'] / 5)),
-                                                                             range(4 * int(hp['n_rnn'] / 5) + n_TRN_units + int(n_exc_thal_units / 4),
-                                                                                   4 * int(hp['n_rnn'] / 5) + n_TRN_units + 2 * int(n_exc_thal_units / 4)),
-                                                                             range(4 * int(hp['n_rnn'] / 5) + n_TRN_units + 2 * int(n_exc_thal_units / 4),
-                                                                                   4 * int(hp['n_rnn'] / 5) + n_TRN_units + 3 * int(n_exc_thal_units / 4))
-                                                                             ]
+            n_inputs = 1 + 2 * hp['n_eachring']
+            start_exc_thal = n_cortical_units + n_TRN_units
+            if 'FO_inputs_1_to_1' in hp and hp['FO_inputs_1_to_1']:
+                    network_architectures[hp['w_mask_type']]['sen_input'] = {
+                    'n_modules': n_inputs,
+                    'pre': [[i] for i in range(n_inputs)],
+                    'post': [start_exc_thal + int(np.floor((i-1) / hp['n_eachring'])) * n_thal_module_units + ((i-1) % hp['n_eachring']) if i > 0 else range(0, n_ctx_module_units) for i in range(n_inputs)],
+                    'rec': [False for i in range(n_inputs)],
+                    'EI_balance': [False for i in range(n_inputs)],
+                    'exc_prop': [None for i in range(n_inputs)]
+                }
+
+            else:
+                network_architectures[hp['w_mask_type']]['sen_input']['post'] = [range(0, n_ctx_module_units),
+                                                                                 range(start_exc_thal + 1 * n_thal_module_units,
+                                                                                       start_exc_thal + 1 * n_thal_module_units + n_FO_thal_units),
+                                                                                 range(start_exc_thal + 2 * n_thal_module_units,
+                                                                                       start_exc_thal + 2 * n_thal_module_units + n_FO_thal_units)
+                                                                                 ]
 
             network_architectures[hp['w_mask_type']]['rnn'] = {
                 'n_modules': n_modules,
@@ -325,8 +371,8 @@ def all_network_architectures(hp):
             network_architectures[hp['w_mask_type']]['output'] = {
                 'n_modules': 1,
                 'pre': ['all'],
-                'post': [range(3 * int(hp['n_rnn'] / 5) + n_inh_units_module + int(n_exc_units_module / 2),
-                               4 * int(hp['n_rnn'] / 5))],
+                'post': [range(3 * n_ctx_module_units + n_ctx_module_inh_units + int(n_ctx_module_exc_units / 2),
+                               n_cortical_units)],
                 'rec': [False],
                 'EI_balance': [True],
                 'exc_prop': [1.]

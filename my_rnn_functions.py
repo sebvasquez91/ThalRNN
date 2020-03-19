@@ -89,104 +89,142 @@ def get_hp(model_dir=None):
     return hp
 
 
-def subnetwork_indx(subset, n_rnn=100, n_modules=5, prop_inh=0.2, prop_TRN=0.4):
-    n_unit_mod = int(n_rnn / n_modules)
-    prop_exc_thal = 1 - prop_TRN
+def subnetwork_indx(subset, n_rnn=120, n_modules=5, thalamus_prop=1/3, prop_exc=0.8, prop_TRN=0.4, FO_thal_prop=1/3, FO_inputs_1_to_1=True, n_each_ring=2):
+    n_thalamic_units = int(n_rnn * thalamus_prop)
+    n_cortical_units = n_rnn - n_thalamic_units
+
+    n_ctx_module_units = int(n_cortical_units / (n_modules-1))
+    n_ctx_module_exc_units = int(n_ctx_module_units * prop_exc)
+    n_ctx_module_inh_units = n_ctx_module_units - n_ctx_module_exc_units
+
+    n_TRN_units = int(n_thalamic_units * prop_TRN)
+    n_exc_thal_units = n_thalamic_units - n_TRN_units
+
+    n_TRN_module_units = int(n_TRN_units / 4)
+    n_thal_module_units = int(n_exc_thal_units / 4)
+
+    if FO_inputs_1_to_1:
+        n_FO_thal_units = n_each_ring
+    else:
+        n_FO_thal_units = int(FO_thal_prop * n_thal_module_units)
+
+    start_exc_thal = n_cortical_units + n_TRN_units
 
     if subset == 'all':
         indx1, idx2 = 0, n_rnn
     elif subset == 'PFC':
-        indx1, idx2 = 0 * n_unit_mod, 1 * n_unit_mod
+        indx1, idx2 = 0 * n_ctx_module_units, 1 * n_ctx_module_units
     elif subset == 'PFC_inh':
-        indx1, idx2 = 0 * n_unit_mod, 0 * n_unit_mod + int(n_unit_mod*prop_inh)
+        indx1, idx2 = 0 * n_ctx_module_units, 0 * n_ctx_module_units + n_ctx_module_inh_units
     elif subset == 'PFC_exc':
-        indx1, idx2 = 0 * n_unit_mod + int(n_unit_mod*prop_inh), 1 * n_unit_mod
+        indx1, idx2 = 0 * n_ctx_module_units + n_ctx_module_inh_units, 1 * n_ctx_module_units
 
     elif subset == 'Mod1':
-        indx1, idx2 = 1 * n_unit_mod, 2 * n_unit_mod
+        indx1, idx2 = 1 * n_ctx_module_units, 2 * n_ctx_module_units
     elif subset == 'Mod1_inh':
-        indx1, idx2 = 1 * n_unit_mod, 1 * n_unit_mod + int(n_unit_mod*prop_inh)
+        indx1, idx2 = 1 * n_ctx_module_units, 1 * n_ctx_module_units + n_ctx_module_inh_units
     elif subset == 'Mod1_exc':
-        indx1, idx2 = 1 * n_unit_mod + int(n_unit_mod*prop_inh), 2 * n_unit_mod
+        indx1, idx2 = 1 * n_ctx_module_units + n_ctx_module_inh_units, 2 * n_ctx_module_units
 
     elif subset == 'Mod2':
-        indx1, idx2 = 2 * n_unit_mod, 3 * n_unit_mod
+        indx1, idx2 = 2 * n_ctx_module_units, 3 * n_ctx_module_units
     elif subset == 'Mod2_inh':
-        indx1, idx2 = 2 * n_unit_mod, 2 * n_unit_mod + int(n_unit_mod*prop_inh)
+        indx1, idx2 = 2 * n_ctx_module_units, 2 * n_ctx_module_units + n_ctx_module_inh_units
     elif subset == 'Mod2_exc':
-        indx1, idx2 = 2 * n_unit_mod + int(n_unit_mod*prop_inh), 3 * n_unit_mod
+        indx1, idx2 = 2 * n_ctx_module_units + n_ctx_module_inh_units, 3 * n_ctx_module_units
 
     elif subset == 'Mot':
-        indx1, idx2 = 3 * n_unit_mod, 4 * n_unit_mod
+        indx1, idx2 = 3 * n_ctx_module_units, 4 * n_ctx_module_units
     elif subset == 'Mot_inh':
-        indx1, idx2 = 3 * n_unit_mod, 3 * n_unit_mod + int(n_unit_mod*prop_inh)
+        indx1, idx2 = 3 * n_ctx_module_units, 3 * n_ctx_module_units + n_ctx_module_inh_units
     elif subset == 'Mot_exc':
-        indx1, idx2 = 3 * n_unit_mod + int(n_unit_mod*prop_inh), 4 * n_unit_mod
+        indx1, idx2 = 3 * n_ctx_module_units + n_ctx_module_inh_units, n_cortical_units
 
     elif subset == 'TRN':
-        indx1, idx2 = 4 * n_unit_mod, 4 * n_unit_mod + int(prop_TRN * n_unit_mod)
+        indx1, idx2 = n_cortical_units, start_exc_thal
     elif subset == 'TRN_MD':
-        indx1, idx2 = 4 * n_unit_mod + 0 * int(prop_TRN * n_unit_mod / 4), \
-                      4 * n_unit_mod + 1 * int(prop_TRN * n_unit_mod / 4)
+        indx1, idx2 = n_cortical_units + 0 * n_TRN_module_units, \
+                      n_cortical_units + 1 * n_TRN_module_units
     elif subset == 'TRN_Mod1':
-        indx1, idx2 = 4 * n_unit_mod + 1 * int(prop_TRN * n_unit_mod / 4), \
-                      4 * n_unit_mod + 2 * int(prop_TRN * n_unit_mod / 4)
+        indx1, idx2 = n_cortical_units + 1 * n_TRN_module_units, \
+                      n_cortical_units + 2 * n_TRN_module_units
     elif subset == 'TRN_Mod2':
-        indx1, idx2 = 4 * n_unit_mod + 2 * int(prop_TRN * n_unit_mod / 4), \
-                      4 * n_unit_mod + 3 * int(prop_TRN * n_unit_mod / 4)
+        indx1, idx2 = n_cortical_units + 2 * n_TRN_module_units, \
+                      n_cortical_units + 3 * n_TRN_module_units
     elif subset == 'TRN_Mot':
-        indx1, idx2 = 4 * n_unit_mod + 3 * int(prop_TRN * n_unit_mod / 4), \
-                      4 * n_unit_mod + 4 * int(prop_TRN * n_unit_mod / 4)
+        indx1, idx2 = n_cortical_units + 3 * n_TRN_module_units, \
+                      n_cortical_units + 4 * n_TRN_module_units
 
     elif subset == 'Thal':
-        indx1, idx2 = 4 * n_unit_mod + int(prop_TRN * n_unit_mod), 5 * n_unit_mod
+        indx1, idx2 = start_exc_thal, 5 * n_thalamic_units
     elif subset == 'Thal_MD':
-        indx1, idx2 = 4 * n_unit_mod + int(prop_TRN * n_unit_mod) + 0 * int(prop_exc_thal * n_unit_mod / 4), \
-                      4 * n_unit_mod + int(prop_TRN * n_unit_mod) + 1 * int(prop_exc_thal * n_unit_mod / 4)
+        indx1, idx2 = start_exc_thal + 0 * n_thal_module_units, \
+                      start_exc_thal + 1 * n_thal_module_units
     elif subset == 'Thal_Mod1':
-        indx1, idx2 = 4 * n_unit_mod + int(prop_TRN * n_unit_mod) + 1 * int(prop_exc_thal * n_unit_mod / 4), \
-                      4 * n_unit_mod + int(prop_TRN * n_unit_mod) + 2 * int(prop_exc_thal * n_unit_mod / 4)
+        indx1, idx2 = start_exc_thal + 1 * n_thal_module_units, \
+                      start_exc_thal + 2 * n_thal_module_units
+    elif subset == 'Thal_Mod1_FO':
+        if FO_inputs_1_to_1:
+            return [start_exc_thal + int(np.floor(i / n_each_ring)) * n_thal_module_units + (i % n_each_ring) for i in range(n_each_ring)]
+        else:
+            indx1, idx2 = start_exc_thal + 1 * n_thal_module_units, \
+                          start_exc_thal + 1 * n_thal_module_units + n_FO_thal_units
+    elif subset == 'Thal_Mod1_HO':
+        indx1, idx2 = start_exc_thal + 1 * n_thal_module_units + n_FO_thal_units, \
+                      start_exc_thal + 2 * n_thal_module_units
     elif subset == 'Thal_Mod2':
-        indx1, idx2 = 4 * n_unit_mod + int(prop_TRN * n_unit_mod) + 2 * int(prop_exc_thal * n_unit_mod / 4), \
-                      4 * n_unit_mod + int(prop_TRN * n_unit_mod) + 3 * int(prop_exc_thal * n_unit_mod / 4)
+        indx1, idx2 = start_exc_thal + 2 * n_thal_module_units, \
+                      start_exc_thal + 3 * n_thal_module_units
+    elif subset == 'Thal_Mod2_FO':
+        if FO_inputs_1_to_1:
+            return [start_exc_thal + int(np.floor(i / n_each_ring)) * n_thal_module_units + (i % n_each_ring) for i in range(n_each_ring, 2*n_each_ring)]
+        else:
+            indx1, idx2 = start_exc_thal + 2 * n_thal_module_units, \
+                          start_exc_thal + 2 * n_thal_module_units + n_FO_thal_units
+    elif subset == 'Thal_Mod2_HO':
+        indx1, idx2 = start_exc_thal + 2 * n_thal_module_units + n_FO_thal_units, \
+                      start_exc_thal + 3 * n_thal_module_units
     elif subset == 'Thal_Mot':
-        indx1, idx2 = 4 * n_unit_mod + int(prop_TRN * n_unit_mod) + 3 * int(prop_exc_thal * n_unit_mod / 4), \
-                      5 * n_unit_mod
+        indx1, idx2 = start_exc_thal + 3 * n_thal_module_units, \
+                      n_rnn
 
     elif subset == 'Thal_sen':
-        part1 = subnetwork_indx('Thal_Mod1', n_rnn, n_modules, prop_inh, prop_TRN)
-        part2 = subnetwork_indx('Thal_Mod2', n_rnn, n_modules, prop_inh, prop_TRN)
+        part1 = subnetwork_indx('Thal_Mod1_FO', n_rnn, n_modules, thalamus_prop, prop_exc, prop_TRN, FO_thal_prop, FO_inputs_1_to_1, n_each_ring)
+        part2 = subnetwork_indx('Thal_Mod2_FO', n_rnn, n_modules, thalamus_prop, prop_exc, prop_TRN, FO_thal_prop, FO_inputs_1_to_1, n_each_ring)
         return list(part1) + list(part2)
 
     elif subset == 'Thal_non-sen':
-        part1 = subnetwork_indx('Thal_MD', n_rnn, n_modules, prop_inh, prop_TRN)
-        part2 = subnetwork_indx('Thal_Mot', n_rnn, n_modules, prop_inh, prop_TRN)
-        return list(part1) + list(part2)
+        part1 = subnetwork_indx('Thal_MD', n_rnn, n_modules, thalamus_prop, prop_exc, prop_TRN, FO_thal_prop, FO_inputs_1_to_1, n_each_ring)
+        part2 = subnetwork_indx('Thal_Mod1_HO', n_rnn, n_modules, thalamus_prop, prop_exc, prop_TRN, FO_thal_prop, FO_inputs_1_to_1, n_each_ring)
+        part3 = subnetwork_indx('Thal_Mod2_HO', n_rnn, n_modules, thalamus_prop, prop_exc, prop_TRN, FO_thal_prop, FO_inputs_1_to_1, n_each_ring)
+        part4 = subnetwork_indx('Thal_Mot', n_rnn, n_modules, thalamus_prop, prop_exc, prop_TRN, FO_thal_prop, FO_inputs_1_to_1, n_each_ring)
+        return list(part1) + list(part2) + list(part3) + list(part4)
 
     return range(indx1, idx2)
 
 
-def get_subnetwork_dict(n_rnn=100, n_modules=5, prop_inh=0.2, prop_TRN=0.4, subnetworks_to_plot='all'):
+def get_subnetwork_dict(n_rnn=120, n_modules=5, prop_exc=0.8, thalamus_prop=1/3, prop_TRN=0.4, FO_thal_prop=1/3,
+                        FO_inputs_1_to_1=True, n_each_ring=4, subnetworks_to_plot='all'):
 
     subnetworks = [
         {'name': 'PFC',
-         'index_range': subnetwork_indx('PFC', n_rnn, n_modules, prop_inh, prop_TRN)
+         'index_range': subnetwork_indx('PFC', n_rnn, n_modules, thalamus_prop, prop_exc, prop_TRN, FO_thal_prop, FO_inputs_1_to_1, n_each_ring)
          # 'pc_projections':
          },
         {'name': 'Thalamus',
-         'index_range': subnetwork_indx('Thal', n_rnn, n_modules, prop_inh, prop_TRN)
+         'index_range': subnetwork_indx('Thal', n_rnn, n_modules, thalamus_prop, prop_exc, prop_TRN, FO_thal_prop, FO_inputs_1_to_1, n_each_ring)
          },
         {'name': 'TRN',
-         'index_range': subnetwork_indx('TRN', n_rnn, n_modules, prop_inh, prop_TRN)
+         'index_range': subnetwork_indx('TRN', n_rnn, n_modules, thalamus_prop, prop_exc, prop_TRN, FO_thal_prop, FO_inputs_1_to_1, n_each_ring)
          },
         {'name': 'Mod 1',
-         'index_range': subnetwork_indx('Mod1', n_rnn, n_modules, prop_inh, prop_TRN)
+         'index_range': subnetwork_indx('Mod1', n_rnn, n_modules, thalamus_prop, prop_exc, prop_TRN, FO_thal_prop, FO_inputs_1_to_1, n_each_ring)
          },
         {'name': 'Mod 2',
-         'index_range': subnetwork_indx('Mod2', n_rnn, n_modules, prop_inh, prop_TRN)
+         'index_range': subnetwork_indx('Mod2', n_rnn, n_modules, thalamus_prop, prop_exc, prop_TRN, FO_thal_prop, FO_inputs_1_to_1, n_each_ring)
          },
         {'name': 'Motor',
-         'index_range': subnetwork_indx('Mot', n_rnn, n_modules, prop_inh, prop_TRN)
+         'index_range': subnetwork_indx('Mot', n_rnn, n_modules, thalamus_prop, prop_exc, prop_TRN, FO_thal_prop, FO_inputs_1_to_1, n_each_ring)
          }
     ]
 
@@ -197,6 +235,7 @@ def get_subnetwork_dict(n_rnn=100, n_modules=5, prop_inh=0.2, prop_TRN=0.4, subn
         subnetworks = [sn for sn in subnetworks if sn['name'] in subnetworks_to_plot]
 
     return subnetworks
+
 
 def get_learnt_weights(model_dir, hp):
     n_input = hp['n_input']
