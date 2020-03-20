@@ -214,6 +214,7 @@ def all_network_architectures(hp):
     network_architectures['basic_TC_exc_in_out'] = network_architectures['basic_TC']
     network_architectures['EI_basic_TC_exc_in'] = network_architectures['basic_TC']
     network_architectures['basic_EI_TC_with_TRN'] = network_architectures['basic_TC']
+    network_architectures['full_EI_CC_TC_with_TRN_v1'] = network_architectures['basic_TC']
     network_architectures['full_EI_CC_TC_with_TRN_v2'] = network_architectures['basic_TC']
     network_architectures['full_EI_CC_TC_with_TRN_v3'] = network_architectures['basic_TC']
 

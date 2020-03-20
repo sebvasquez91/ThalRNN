@@ -777,7 +777,7 @@ if __name__ == '__main__':
                #{**hp, 'use_w_mask': False, 'w_mask_type': None}
                ]
     names_list = [
-        'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v3',
+        'EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v3',
         'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v2',
         #'vanilla_RNN_shared_h_contextdelaydm_MD_task_retanh',
         #'full_EI_CC_TC_with_TRN_shared_h_contextdelaydm_MD_task_retanh',
@@ -786,7 +786,7 @@ if __name__ == '__main__':
                   ]
 
     reload_model = None
-    #reload_model = 'test_smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v3_seed_0'
+    #reload_model = 'EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v3_seed_000'
 
     new_learning_rate = None
 
