@@ -580,6 +580,7 @@ class LeakyRNNCell(RNNCell):
                  w_mask_rnn,
                  EI_list_input=None,
                  EI_list_rnn=None,
+                 FO_sen_inputs_1_to_1=None,
                  sigma_rec=0,
                  activation='softplus',
                  w_rec_init='diag',
@@ -631,6 +632,8 @@ class LeakyRNNCell(RNNCell):
         # Gaussian with mean 0.0
         w_in0 = (self._w_in_start *
                  self.rng.randn(n_input, n_hidden) / np.sqrt(n_input))
+        if FO_sen_inputs_1_to_1:
+            w_in0[1:FO_sen_inputs_1_to_1, :] = 0.5
 
         if self._w_rec_init == 'diag':
             w_rec0 = self._w_rec_start*np.eye(n_hidden)
@@ -1075,6 +1078,11 @@ class Model(object):
         else:
             EI_list_rnn = None
 
+        if 'FO_inputs_1_to_1' in hp and hp['FO_inputs_1_to_1']:
+            FO_sen_inputs_1_to_1 = hp['rule_start']
+        else:
+            FO_sen_inputs_1_to_1 = None
+
         # Recurrent activity
         if hp['rnn_type'] == 'LeakyRNN':
             n_in_rnn = self.x.get_shape().as_list()[-1]
@@ -1084,6 +1092,7 @@ class Model(object):
                                 w_mask_rnn=self.w_masks_all['rnn'],
                                 EI_list_input=EI_list_input,
                                 EI_list_rnn=EI_list_rnn,
+                                FO_sen_inputs_1_to_1=FO_sen_inputs_1_to_1,
                                 sigma_rec=hp['sigma_rec'],
                                 activation=hp['activation'],
                                 w_rec_init=hp['w_rec_init'],
@@ -1225,6 +1234,8 @@ class Model(object):
 
         # Gaussian with mean 0.0 and with input weight mask applied
         w_sen_in0 = (self.rng.randn(n_sen_input, n_rnn) / np.sqrt(n_sen_input)) * self.w_masks_all['sen_input']
+        if 'FO_inputs_1_to_1' in hp and hp['FO_inputs_1_to_1']:
+            w_sen_in0[1:n_sen_input,:] = 0.5
         sen_w_initializer = tf.compat.v1.constant_initializer(w_sen_in0, dtype=tf.float32)
 
         sensory_inputs, rule_inputs = tf.split(
