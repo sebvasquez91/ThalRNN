@@ -702,14 +702,23 @@ def train_rule_only(
         print("Optimization Finished!")
 
 
-def continue_training(reload_model, performance_reached=False, interrupt=False, h_init=None, new_learning_rate=None):
+def continue_training(reload_model, saving_path='./saved_models', performance_reached=False, interrupt=False, h_init=None, new_learning_rate=None):
+
+    if not exists(join(saving_path, reload_model, 'hp.json')):
+        reload_model_type_name = reload_model.split('_seed')[0]
+        reload_model_seed = 'seed_' + [s for s in reload_model.split('_seed')[1].split('_') if s][0].zfill(3)
+        saving_path = join(saving_path, reload_model_type_name, reload_model_seed)
+
     while performance_reached is False and interrupt is False:
+        print('\nContinuing training of model ' + reload_model + ' in folder ' + saving_path + '\n')
+
         load_model_name = sorted([basename(folder[0]) for folder in walk(saving_path) if basename(folder[0]).startswith(reload_model)])[-1]
 
-        if '_part' in load_model_name[-9:]:
-            model_name = load_model_name.split('_part')[0] + '_part' + str(int(load_model_name.split('_part')[-1]) + 1).zfill(4)
-        else:
-            model_name = load_model_name + '_part0002'
+        # if '_part' in load_model_name[-9:]:
+        model_name = load_model_name.split('_part')[0] + '_part' + str(int(load_model_name.split('_part')[-1]) + 1).zfill(4)
+        # else:
+        #     model_name = load_model_name + '_part0002'
+
         model_dir = join(saving_path, model_name)
         load_dir = join(saving_path, load_model_name)
         hp = tools.load_hp(load_dir)
@@ -730,11 +739,10 @@ def continue_training(reload_model, performance_reached=False, interrupt=False, 
                                                        dynamic_rule_prob=True)
 
         if platform.system() == 'Linux':
-            home = expanduser('~')
-            src = 'My_scripts_Local/Models_Local/ThalRNN/saved_models/'
-            dest = 'Dropbox/Trained_models/ThalRNN/saved_models/'
+            dest = join(expanduser('~'), 'Dropbox/Trained_models/ThalRNN/saved_models/', reload_model_type_name,
+                        reload_model_seed, basename(model_dir))
             try:
-                shutil.copytree(join(home, src, model_name), join(home, dest, model_name))
+                shutil.copytree(abspath(model_dir), dest)
             except:
                 print('File copying to Dropbox failed.')
 
@@ -749,12 +757,12 @@ if __name__ == '__main__':
     #
     # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-    from os.path import expanduser, join, basename, exists
+    from os.path import expanduser, join, basename, exists, abspath
     import shutil
     import platform
     from os import walk
 
-    saving_path = './saved_models'
+    global_saving_path = './saved_models'
 
     seed_range = range(0, 10) #(0, 10)
     hp = {'learning_rate': 0.0005, 'n_rnn': 120, 'target_perf': 0.95,
@@ -769,24 +777,24 @@ if __name__ == '__main__':
                #{**hp, 'use_w_mask': False, 'w_mask_type': None}
                ]
     names_list = [
-        'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v3_seed_',
-        'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v2_seed_',
-        #'vanilla_RNN_shared_h_contextdelaydm_MD_task_retanh_seed_',
-        #'full_EI_CC_TC_with_TRN_shared_h_contextdelaydm_MD_task_retanh_seed_',
-        #'sparse_control_EI_TC_with_TRN_contextdelaydm_MD_task_relu_seed_',
-        #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu_seed_',
+        'smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v3',
+        'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v2',
+        #'vanilla_RNN_shared_h_contextdelaydm_MD_task_retanh',
+        #'full_EI_CC_TC_with_TRN_shared_h_contextdelaydm_MD_task_retanh',
+        #'sparse_control_EI_TC_with_TRN_contextdelaydm_MD_task_relu',
+        #'fully_connected_EI_RNN_contextdelaydm_MD_task_relu',
                   ]
 
-    #reload_model = 'single_module_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_seed_1'
     reload_model = None
+    #reload_model = 'test_smaller_EI_CC_TC_with_TRN_shared_h_2C_contextdelaydm_MD_task_retanh_v3_seed_0'
 
     new_learning_rate = None
 
     if reload_model is None:
         for hp, name in zip(hp_list, names_list):
             for seed in seed_range:
-                model_name = name + str(seed)
-                model_dir = join(saving_path, model_name)
+                model_name = name + '_seed_' + str(seed).zfill(3)
+                model_dir = join(global_saving_path, name, 'seed_' + str(seed).zfill(3), model_name + '_part0001')
 
                 performance_reached, interrupt, h_init = False, False, None
                 if not exists(model_dir):
@@ -800,16 +808,15 @@ if __name__ == '__main__':
                                                                    dynamic_rule_prob=True)
 
                     if platform.system() == 'Linux':
-                        home = expanduser('~')
-                        src = 'My_scripts_Local/Models_Local/ThalRNN/saved_models/'
-                        dest = 'Dropbox/Trained_models/ThalRNN/saved_models/'
+                        dest = join(expanduser('~'), 'Dropbox/Trained_models/ThalRNN/saved_models/', name, 'seed_' + str(seed).zfill(3),
+                                    basename(model_dir))
                         try:
-                            shutil.copytree(join(home, src, model_name), join(home, dest, model_name))
+                            shutil.copytree(abspath(model_dir), dest)
                         except:
                             print('File copying to Dropbox failed.')
 
-                continue_training(basename(model_dir), performance_reached, interrupt, h_init, new_learning_rate=new_learning_rate)
+                continue_training(model_name, global_saving_path, performance_reached, interrupt, h_init, new_learning_rate=new_learning_rate)
     else:
-        continue_training(reload_model, new_learning_rate=new_learning_rate)
+        continue_training(reload_model, global_saving_path, new_learning_rate=new_learning_rate)
 
 
